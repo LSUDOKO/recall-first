@@ -67,6 +67,13 @@ the screens without a key. The demo uses the real model.
 **Model:** defaults to `claude-opus-5-5`. Set `RECALL_MODEL=claude-sonnet-5-5` in `.env` for
 a cheaper, faster option.
 
+## Android
+
+`dist/recall-first.apk` is a small WebView app that opens the live site. Download it from the
+[latest release](https://github.com/LSUDOKO/recall-first/releases/latest), allow the install,
+done. Rebuild with `android/build.sh` (needs the Android SDK build-tools; no Gradle). Details in
+[`android/README.md`](android/README.md).
+
 ## Deploy it
 
 The repo deploys to Vercel as-is: `public/` is static, `api/*.js` are functions sharing

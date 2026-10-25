@@ -15,3 +15,7 @@ node_modules/
 
 # browser-check artifacts
 .playwright-mcp/
+
+# Android local build output and signing key
+android/build/
+android/debug.keystore
