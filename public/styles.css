@@ -76,3 +76,26 @@ textarea:focus-visible { outline-offset: 0; border-color: var(--ink); }
   border: 2px solid var(--paper); border-right-color: transparent; border-radius: 50%;
   animation: spin .7s linear infinite; }
 @keyframes spin { to { rotate: 360deg; } }
+
+/* Question screen */
+.question { font: 500 clamp(26px, 4.2vw, 31px)/1.3 var(--serif); letter-spacing: -0.01em;
+  margin: 0 0 28px; text-wrap: pretty; }
+.field-label { display: block; margin: 26px 0 10px; font-size: 16px; color: var(--muted); }
+.confidence { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--ink);
+  border-radius: 6px; overflow: hidden; }
+.confidence button { appearance: none; border: 0; background: transparent; padding: 12px 6px;
+  font-size: 16px; cursor: pointer; border-left: 1px solid var(--ink); transition: background .15s, color .15s; }
+.confidence button:first-child { border-left: 0; }
+.confidence button[aria-pressed="true"] { background: var(--ink); color: var(--paper); font-weight: 500; }
+.confidence button[data-level="certain"][aria-pressed="true"] { background: var(--mark); color: var(--ink); }
+.confidence button:focus-visible { outline-offset: -3px; outline-color: var(--paper); }
+.confidence button:not([aria-pressed="true"]):focus-visible { outline-color: var(--ink); }
+.actions { display: flex; align-items: center; gap: 18px; margin-top: 30px; flex-wrap: wrap; }
+.practice-tag { display: inline-block; margin: 0 0 10px; padding: 3px 8px; border: 1px solid var(--rule);
+  border-radius: 4px; font-size: 13px; color: var(--muted); }
+@media (max-width: 480px) {
+  .confidence { grid-template-columns: 1fr 1fr; }
+  .confidence button { border-left: 0; border-top: 1px solid var(--ink); }
+  .confidence button:nth-child(-n+2) { border-top: 0; }
+  .confidence button:nth-child(even) { border-left: 1px solid var(--ink); }
+}
