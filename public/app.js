@@ -107,7 +107,79 @@ if (typeof document !== "undefined") {
         <button class="btn quiet" id="idk-btn" type="button">I don't know</button>
       </div>`;
     show("question");
-    $("answer").focus();
+    const answer = $("answer"), checkBtn = $("check-btn"), picker = $("confidence");
+    let confidence = null;
+    picker.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-level]");
+      if (!btn) return;
+      confidence = btn.dataset.level;
+      for (const b of picker.querySelectorAll("button")) b.setAttribute("aria-pressed", String(b === btn));
+      checkBtn.disabled = false;
+    });
+    checkBtn.addEventListener("click", () => submitAnswer(answer.value, confidence));
+    $("idk-btn").addEventListener("click", () => recordAnswer({ userAnswer: "", confidence: "guessing", verdict: "wrong",
+      feedback: "Honest. Here's the answer to study.", correctAnswer: q.answer, skipped: true }));
+    answer.focus();
+  }
+
+  async function submitAnswer(userAnswer, confidence) {
+    const q = session.questions[session.index];
+    if (!userAnswer.trim()) {   // an empty answer is the same as "I don't know"
+      return recordAnswer({ userAnswer: "", confidence: "guessing", verdict: "wrong",
+        feedback: "Honest. Here's the answer to study.", correctAnswer: q.answer, skipped: true });
+    }
+    const checkBtn = $("check-btn");
+    checkBtn.classList.add("busy"); checkBtn.disabled = true; $("idk-btn").disabled = true; $("answer").disabled = true;
+    try {
+      const grade = await api("/api/grade", { question: q.question, referenceAnswer: q.answer, userAnswer, notes: session.notes });
+      recordAnswer({ userAnswer, confidence, ...grade, skipped: false });
+    } catch (err) {
+      showQuestionError(friendly(err), () => submitAnswer(userAnswer, confidence));
+    } finally {
+      checkBtn.classList.remove("busy"); checkBtn.disabled = false; $("idk-btn").disabled = false; $("answer").disabled = false;
+    }
+  }
+
+  function showQuestionError(message, retry) {
+    let box = screens.question.querySelector(".notice");
+    if (!box) { box = document.createElement("p"); box.className = "notice error"; box.setAttribute("role", "alert"); screens.question.append(box); }
+    box.innerHTML = `${esc(message)} <button type="button" class="btn quiet" id="retry-btn">Try again</button>`;
+    $("retry-btn").addEventListener("click", () => { box.remove(); retry(); });
+  }
+
+  function recordAnswer(entry) {
+    const q = session.questions[session.index];
+    session.answers[session.index] = { question: q.question, referenceAnswer: q.answer, ...entry };
+    renderFeedback();
+  }
+
+  // ----- Feedback screen -----
+  const VERDICT = { right: "Right", partly: "Partly right", wrong: "Wrong" };
+  function renderFeedback() {
+    const a = session.answers[session.index];
+    const last = session.index === QUESTION_COUNT - 1;
+    const conf = CONFIDENCE.find((c) => c.level === a.confidence);
+    screens.feedback.innerHTML = `
+      <p class="verdict ${a.verdict}">${VERDICT[a.verdict]}</p>
+      <p class="feedback-text">${esc(a.feedback)}</p>
+      <div class="correct">
+        <span class="correct-label">Correct answer, from your notes</span>
+        <p>${esc(a.correctAnswer)}</p>
+      </div>
+      <p class="meta">${a.skipped ? "You said you didn't know." : `You said you were ${conf.label.toLowerCase()}.`}${!a.skipped ? ` You wrote: <q>${esc(a.userAnswer)}</q>` : ""}</p>
+      <div class="actions"><button class="btn primary" id="next-btn" type="button">${last ? "See results" : "Next question"}</button></div>`;
+    show("feedback");
+    $("next-btn").addEventListener("click", () => {
+      if (last) return renderResults();
+      session.index += 1;
+      renderQuestion();
+    });
+    $("next-btn").focus();
+  }
+
+  function renderResults() {
+    screens.results.innerHTML = `<h2 class="headline">Results</h2><p class="lede">Coming in the next slice.</p>`;
+    show("results");
   }
 
   // ----- boot -----
