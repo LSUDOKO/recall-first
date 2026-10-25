@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "node --env-file-if-exists=.env server.js",
-    "test": "node --test test/"
+    "test": "node --test test/*.test.js"
   },
   "license": "MIT",
   "dependencies": {

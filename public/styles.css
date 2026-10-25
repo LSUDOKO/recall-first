@@ -114,3 +114,36 @@ textarea:focus-visible { outline-offset: 0; border-color: var(--ink); }
 .correct-label { display: block; font-size: 15px; color: var(--muted); margin-bottom: 6px; }
 .correct p { margin: 0; font: 400 20px/1.5 var(--serif); }
 q { quotes: "“" "”"; font-style: italic; }
+
+/* Results screen */
+.score { margin: 0 0 6px; font-family: var(--serif); line-height: 1; }
+.score-num { font-size: clamp(72px, 12vw, 96px); font-weight: 500; letter-spacing: -0.03em; }
+.score-of { font-size: 22px; color: var(--muted); }
+.results-headline { max-width: 24ch; margin-bottom: 44px; }
+.scale { margin: 0 0 10px; padding: 34px 0 28px; }
+.track { position: relative; height: 4px; background: var(--rule); border-radius: 2px; }
+.gap { position: absolute; top: -8px; height: 20px; background: var(--mark); border-radius: 2px; }
+.marker { position: absolute; top: 50%; translate: -50% -50%; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--ink); border: 2px solid var(--paper); }
+.marker span { position: absolute; left: 50%; translate: -50% 0; white-space: nowrap; font-size: 15px; color: var(--ink); }
+.marker.felt span { bottom: 22px; }
+.marker.knew span { top: 22px; }
+.marker.knew { background: var(--paper); border: 3px solid var(--ink); }
+.scale-ends { display: flex; justify-content: space-between; margin-top: 30px; font-size: 13px; color: var(--muted); }
+.scale-note { margin-bottom: 48px; }
+.section-title { font: 500 26px/1.25 var(--serif); margin: 0 0 8px; }
+.empty { color: var(--muted); margin: 8px 0 0; }
+.study { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 14px; }
+.study-item { padding: 18px 20px; background: var(--card); border: 1px solid var(--rule); border-radius: 6px; }
+.badge { display: inline-block; padding: 2px 8px; background: var(--mark); color: var(--ink); font-size: 14px;
+  font-weight: 500; border-radius: 3px; margin-bottom: 10px; }
+.study-q { margin: 0 0 12px; font: 500 20px/1.4 var(--serif); }
+.study-line { margin: 6px 0 0; font-size: 16px; }
+.study-line span { display: inline-block; min-width: 84px; color: var(--muted); }
+.all { margin-top: 40px; border-top: 1px solid var(--rule); padding-top: 18px; }
+.all summary { cursor: pointer; font-weight: 500; }
+.all-list { margin: 14px 0 0; padding-left: 22px; display: grid; gap: 12px; }
+.all-list p { margin: 2px 0 0; font-size: 16px; }
+.v { font-weight: 500; }
+.v.right { color: var(--right); } .v.partly { color: var(--partly); } .v.wrong { color: var(--wrong); }
+#screen-results .actions { margin-top: 44px; }

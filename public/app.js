@@ -9,6 +9,40 @@ export const CONFIDENCE = [
   { level: "certain", label: "Certain", value: 1 },
 ];
 
+// Score maths and the overconfidence check. Pure: answers in, summary out.
+export function summarize(answers, total = QUESTION_COUNT) {
+  const points = { right: 1, partly: 0.5, wrong: 0 };
+  const value = (level) => CONFIDENCE.find((c) => c.level === level).value;
+  const score = answers.reduce((sum, a) => sum + points[a.verdict], 0);
+  const accuracy = score / total;
+  const confidence = answers.reduce((sum, a) => sum + value(a.confidence), 0) / total;
+  const missed = (a) => a.verdict !== "right";
+  const studyFirst = answers
+    .map((a, i) => ({ ...a, number: i + 1 }))
+    .filter((a) => missed(a) && (a.confidence === "fairly" || a.confidence === "certain"))
+    .sort((a, b) => value(b.confidence) - value(a.confidence));
+  const certain = answers.filter((a) => a.confidence === "certain");
+  const certainMissed = certain.filter(missed);
+  const fairlyMissed = studyFirst.filter((a) => a.confidence === "fairly");
+  const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  let headline;
+  if (certainMissed.length) {
+    const allWrong = certainMissed.every((a) => a.verdict === "wrong");
+    headline = `You were Certain on ${plural(certain.length, "answer")} — and got ${certainMissed.length} of them ${allWrong ? "wrong" : "not quite right"}.`;
+  } else if (fairlyMissed.length) {
+    headline = `You were fairly sure on ${plural(fairlyMissed.length, "answer")} that didn't hold up.`;
+  } else if (accuracy - confidence >= 0.2) {
+    headline = "You know more than you think.";
+  } else if (confidence - accuracy >= 0.2) {
+    headline = "Your confidence ran a little ahead of your recall.";
+  } else {
+    headline = "Your confidence matched your knowledge. Nice calibration.";
+  }
+  const counts = { right: 0, partly: 0, wrong: 0 };
+  for (const a of answers) counts[a.verdict] += 1;
+  return { score, accuracy, confidence, studyFirst, headline, counts };
+}
+
 export const countWords = (text) => (text.trim().match(/\S+/g) || []).length;
 export const trimWords = (text, max = MAX_WORDS) => (text.trim().match(/\S+/g) || []).slice(0, max).join(" ");
 
@@ -177,9 +211,52 @@ if (typeof document !== "undefined") {
     $("next-btn").focus();
   }
 
+  // ----- Results screen -----
   function renderResults() {
-    screens.results.innerHTML = `<h2 class="headline">Results</h2><p class="lede">Coming in the next slice.</p>`;
+    const r = summarize(session.answers);
+    const pct = (x) => Math.round(x * 100);
+    const label = (level) => CONFIDENCE.find((c) => c.level === level).label;
+    const fmt = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+    const lo = Math.min(r.confidence, r.accuracy), hi = Math.max(r.confidence, r.accuracy);
+    const item = (a) => `
+      <li class="study-item">
+        <span class="badge">${label(a.confidence)}</span>
+        <p class="study-q">${esc(a.question)}</p>
+        <p class="study-line"><span>You wrote</span>${a.skipped ? "<em>I don't know</em>" : esc(a.userAnswer)}</p>
+        <p class="study-line"><span>Correct</span>${esc(a.correctAnswer)}</p>
+      </li>`;
+    screens.results.innerHTML = `
+      <p class="score"><span class="score-num">${fmt(r.score)}</span><span class="score-of"> of ${QUESTION_COUNT}</span></p>
+      <h2 class="headline results-headline">${esc(r.headline)}</h2>
+
+      <div class="scale" role="img" aria-label="You felt ${pct(r.confidence)} percent sure on average and knew ${pct(r.accuracy)} percent.">
+        <div class="track">
+          <div class="gap" style="left:${pct(lo)}%; width:${pct(hi) - pct(lo)}%"></div>
+          <div class="marker felt" style="left:${pct(r.confidence)}%"><span>Felt ${pct(r.confidence)}%</span></div>
+          <div class="marker knew" style="left:${pct(r.accuracy)}%"><span>Knew ${pct(r.accuracy)}%</span></div>
+        </div>
+        <div class="scale-ends"><span>0%</span><span>100%</span></div>
+      </div>
+      <p class="meta scale-note">Felt is your average confidence. Knew is your score. The highlighted part is the gap.</p>
+
+      <h3 class="section-title">Study these first</h3>
+      ${r.studyFirst.length
+        ? `<p class="meta">Answers you were sure about that didn't hold up.</p><ol class="study">${r.studyFirst.map(item).join("")}</ol>`
+        : `<p class="empty">Nothing to flag. Every answer you were sure about was right.</p>`}
+
+      <details class="all">
+        <summary>All ${QUESTION_COUNT} answers</summary>
+        <ol class="all-list">${session.answers.map((a, i) => `
+          <li><span class="v ${a.verdict}">${VERDICT[a.verdict]}</span> <span class="meta">${a.skipped ? "didn't know" : label(a.confidence).toLowerCase()}</span><p>${esc(a.question)}</p></li>`).join("")}</ol>
+      </details>
+
+      <div class="actions"><button class="btn primary" id="again-btn" type="button">Try again with new notes</button></div>`;
     show("results");
+    $("again-btn").addEventListener("click", () => {
+      session = freshSession();
+      notes.value = ""; setNotice(""); updateIntake();
+      show("start"); notes.focus();
+    });
   }
 
   // ----- boot -----
