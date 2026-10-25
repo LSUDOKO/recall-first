@@ -1,26 +1,36 @@
-// Recall First — the page. One in-memory session object, four screens, two fetch calls.
+// Recall First — the page. One in-memory session object, a handful of screens, four fetch calls.
 export const MIN_WORDS = 100;
 export const MAX_WORDS = 2500;
 export const QUESTION_COUNT = 5;
+export const FAST_MS = 8000;             // ponytail: fixed cutoff for "answered fast"; make it relative to the learner's median if it misfires
 export const CONFIDENCE = [
-  { level: "guessing", label: "Guessing", value: 0.25 },
-  { level: "unsure", label: "Unsure", value: 0.5 },
-  { level: "fairly", label: "Fairly sure", value: 0.75 },
-  { level: "certain", label: "Certain", value: 1 },
+  // win/lose = certainty-based marking points (Gardner-Medwin style, four levels)
+  { level: "guessing", label: "Guessing", value: 0.25, win: 1, lose: 0 },
+  { level: "unsure", label: "Unsure", value: 0.5, win: 2, lose: -1 },
+  { level: "fairly", label: "Fairly sure", value: 0.75, win: 3, lose: -3 },
+  { level: "certain", label: "Certain", value: 1, win: 4, lose: -8 },
 ];
+const conf = (level) => CONFIDENCE.find((c) => c.level === level);
+
+export const countWords = (text) => (text.trim().match(/\S+/g) || []).length;
+export const trimWords = (text, max = MAX_WORDS) => {
+  const w = text.trim().match(/\S+/g) || [];
+  return w.length <= max ? text.trim() : w.slice(0, max).join(" ");   // keep paragraph breaks unless we have to cut
+};
+
+// Points for one answer: right 1, partly 0.5, wrong 0; a right answer that needed hints counts as half.
+export const points = (a) => (a.verdict === "right" ? (a.hintsUsed ? 0.5 : 1) : a.verdict === "partly" ? 0.5 : 0);
 
 // Score maths and the overconfidence check. Pure: answers in, summary out.
-export function summarize(answers, total = QUESTION_COUNT) {
-  const points = { right: 1, partly: 0.5, wrong: 0 };
-  const value = (level) => CONFIDENCE.find((c) => c.level === level).value;
-  const score = answers.reduce((sum, a) => sum + points[a.verdict], 0);
+export function summarize(answers, total = QUESTION_COUNT, concepts = []) {
+  const score = answers.reduce((sum, a) => sum + points(a), 0);
   const accuracy = score / total;
-  const confidence = answers.reduce((sum, a) => sum + value(a.confidence), 0) / total;
+  const confidence = answers.reduce((sum, a) => sum + conf(a.confidence).value, 0) / total;
   const missed = (a) => a.verdict !== "right";
-  const studyFirst = answers
-    .map((a, i) => ({ ...a, number: i + 1 }))
+  const numbered = answers.map((a, i) => ({ ...a, number: i + 1 }));
+  const studyFirst = numbered
     .filter((a) => missed(a) && (a.confidence === "fairly" || a.confidence === "certain"))
-    .sort((a, b) => value(b.confidence) - value(a.confidence));
+    .sort((a, b) => conf(b.confidence).value - conf(a.confidence).value);
   const certain = answers.filter((a) => a.confidence === "certain");
   const certainMissed = certain.filter(missed);
   const fairlyMissed = studyFirst.filter((a) => a.confidence === "fairly");
@@ -40,38 +50,83 @@ export function summarize(answers, total = QUESTION_COUNT) {
   }
   const counts = { right: 0, partly: 0, wrong: 0 };
   for (const a of answers) counts[a.verdict] += 1;
-  return { score, accuracy, confidence, studyFirst, headline, counts };
+
+  // Certainty-based marking: being sure and wrong costs more than admitting doubt.
+  const cbmFor = (a, level) => {
+    if (a.skipped) return 0;
+    const c = conf(level);
+    return a.verdict === "right" ? (a.hintsUsed ? c.win / 2 : c.win) : a.verdict === "partly" ? c.win / 2 : c.lose;
+  };
+  const cbm = {
+    score: answers.reduce((s, a) => s + cbmFor(a, a.confidence), 0),
+    max: total * CONFIDENCE[3].win,
+    ifHonest: answers.reduce((s, a) => s + cbmFor(a, missed(a) ? "guessing" : a.confidence), 0),
+  };
+
+  // Fluency trap: fast, certain, and wrong — the feeling of knowing without the knowing.
+  const fluencyTraps = numbered.filter((a) => !a.skipped && a.confidence === "certain" && a.verdict === "wrong" && a.ms != null && a.ms < FAST_MS);
+
+  // Blind-spot map: one status per concept the notes cover.
+  const blindSpots = concepts.map((name) => {
+    const mine = numbered.filter((a) => a.concept === name);
+    const status = !mine.length ? "untested" : mine.some((a) => missed(a) && conf(a.confidence).value >= 0.75) ? "sure-wrong" : mine.some(missed) ? "missed" : "right";
+    return { name, status, count: mine.length };
+  });
+
+  const sure = answers.filter((a) => conf(a.confidence).value >= 0.75);
+  const overconfidence = sure.length ? sure.filter(missed).length / sure.length : 0;
+
+  return { score, accuracy, confidence, studyFirst, headline, counts, cbm, fluencyTraps, blindSpots, overconfidence };
 }
 
-export const countWords = (text) => (text.trim().match(/\S+/g) || []).length;
-export const trimWords = (text, max = MAX_WORDS) => (text.trim().match(/\S+/g) || []).slice(0, max).join(" ");
+// Wordle-style share text. No notes, no answers — just the shape of the run.
+export function shareCard(answers, summary) {
+  const box = { right: "🟩", partly: "🟨", wrong: "🟥" };
+  const dot = (a) => (a.skipped ? "◌" : conf(a.confidence).value >= 0.75 ? "●" : "○");
+  const pct = (x) => Math.round(x * 100);
+  return [
+    "Recall First",
+    answers.map((a) => box[a.verdict]).join(""),
+    answers.map(dot).join("") + "  sure / not sure",
+    `Felt ${pct(summary.confidence)}%, knew ${pct(summary.accuracy)}%`,
+    summary.studyFirst.length ? `${summary.studyFirst.length} sure-but-wrong to study first` : "No overconfident misses",
+  ].join("\n");
+}
 
 // Everything below touches the DOM; skip it when imported by a test.
 if (typeof document !== "undefined") {
   const $ = (id) => document.getElementById(id);
-  const screens = { start: $("screen-start"), question: $("screen-question"), feedback: $("screen-feedback"), results: $("screen-results") };
-  const notes = $("notes"), meta = $("word-meta"), quizBtn = $("quiz-btn"), notice = $("start-notice");
+  const screens = Object.fromEntries(["start", "read", "question", "feedback", "spot", "results"].map((k) => [k, $(`screen-${k}`)]));
+  const notes = $("notes"), notesB = $("notes-b"), meta = $("word-meta"), quizBtn = $("quiz-btn"), notice = $("start-notice");
   const progressLabel = $("progress-label"), progress = $("progress"), progressFill = $("progress-fill");
+  const STORE = "recallfirst.runs";
 
   // The whole session lives here and nowhere else. A refresh wipes it.
   let session = freshSession();
   let status = { ready: true, mock: false };
-  function freshSession() { return { notes: "", questions: [], answers: [], index: 0 }; }
+  function freshSession() {
+    return { notes: "", guessFirst: false, round: 1, round1: null, concepts: [], summary: null,
+      questions: [], answers: [], index: 0, spot: null, fix: null, startedAt: 0 };
+  }
 
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const pct = (x) => Math.round(x * 100);
+  const IDK = (q) => ({ userAnswer: "", confidence: "guessing", verdict: "wrong", feedback: "Honest. Here's the answer to study.", correctAnswer: q.answer, skipped: true });
 
-  function show(name) {
+  function show(name, { label, fill } = {}) {
     for (const [k, el] of Object.entries(screens)) {
       el.hidden = k !== name;
       if (k === name) { el.style.animation = "none"; void el.offsetWidth; el.style.animation = ""; }
     }
-    const inQuiz = name === "question" || name === "feedback";
-    progressLabel.hidden = progress.hidden = !inQuiz;
-    if (inQuiz) {
-      progressLabel.textContent = `Question ${session.index + 1} of ${QUESTION_COUNT}`;
-      progressFill.style.width = `${((session.index + (name === "feedback" ? 1 : 0)) / QUESTION_COUNT) * 100}%`;
-    }
+    progressLabel.hidden = progress.hidden = label == null;
+    if (label != null) { progressLabel.textContent = label; progressFill.style.width = `${fill}%`; }
     window.scrollTo({ top: 0, behavior: "instant" });
+  }
+  function quizLabel(offset = 0) {
+    const inFix = Boolean(session.fix);
+    const n = inFix ? session.fix.items.length : QUESTION_COUNT;
+    const prefix = inFix ? "Fix" : session.guessFirst ? `Round ${session.round}, question` : "Question";
+    return { label: `${prefix} ${session.index + 1} of ${n}`, fill: ((session.index + offset) / n) * 100 };
   }
 
   function setNotice(text, kind = "") {
@@ -91,10 +146,36 @@ if (typeof document !== "undefined") {
     if (!res.ok) throw Object.assign(new Error(data.message || "Something went wrong talking to the AI."), { code: data.error, status: res.status });
     return data;
   }
+  function friendly(err) {
+    if (err.code === "missing_key" || err.code === "bad_key") return err.message + " See README.md for setup.";
+    return err.code ? err.message : "Something went wrong talking to the AI. Nothing was lost — try again.";
+  }
+
+  // ----- Local-only trend (no account, no server) -----
+  function loadRuns() { try { return JSON.parse(localStorage.getItem(STORE) || "[]"); } catch { return []; } }
+  function saveRun(r) {
+    try {
+      const runs = loadRuns();
+      runs.push({ t: Date.now(), felt: pct(r.confidence), knew: pct(r.accuracy), over: pct(r.overconfidence) });
+      localStorage.setItem(STORE, JSON.stringify(runs.slice(-20)));
+    } catch { /* private mode or storage blocked: the trend is a nicety, not a need */ }
+  }
+  function renderTrend() {
+    const runs = loadRuns();
+    const box = $("trend");
+    box.hidden = runs.length === 0;
+    if (!runs.length) return;
+    const last = runs[runs.length - 1], first = runs[0];
+    const bars = runs.slice(-10).map((r) => `<span class="bar" title="felt ${r.felt}%, knew ${r.knew}%"><i class="felt" style="height:${r.felt}%"></i><i class="knew" style="height:${r.knew}%"></i></span>`).join("");
+    const change = runs.length > 1 ? ` Overconfidence ${first.over}% on your first run, ${last.over}% on your last.` : "";
+    box.innerHTML = `<p class="meta">Your last ${runs.length === 1 ? "run" : `${Math.min(runs.length, 10)} runs`} in this browser: dark is what you felt, light is what you knew.${change}</p><div class="bars">${bars}</div><button type="button" class="btn quiet small" id="clear-runs">Clear</button>`;
+    $("clear-runs").addEventListener("click", () => { try { localStorage.removeItem(STORE); } catch {} renderTrend(); });
+  }
 
   // ----- Start screen -----
+  const combinedNotes = () => notesB.closest("#notes-b-wrap").hidden || !notesB.value.trim() ? notes.value : `${notes.value.trim()}\n\n---\n\n${notesB.value.trim()}`;
   function updateIntake() {
-    const n = countWords(notes.value);
+    const n = countWords(combinedNotes());
     quizBtn.disabled = n < MIN_WORDS || !status.ready;
     if (n === 0) meta.textContent = "0 words. Paste about 100 more to start.";
     else if (n < MIN_WORDS) meta.textContent = `${n} words. Paste a bit more, about ${MIN_WORDS - n} more, so the questions have something to work with.`;
@@ -103,51 +184,90 @@ if (typeof document !== "undefined") {
     else if (notice.textContent.startsWith("That's a lot")) setNotice("");
   }
   notes.addEventListener("input", updateIntake);
+  notesB.addEventListener("input", updateIntake);
+  $("add-set-btn").addEventListener("click", () => {
+    const wrap = $("notes-b-wrap");
+    wrap.hidden = !wrap.hidden;
+    $("add-set-btn").textContent = wrap.hidden ? "Mix in a second set of notes" : "Remove the second set";
+    if (!wrap.hidden) notesB.focus();
+    updateIntake();
+  });
 
   $("start-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     if (quizBtn.disabled) return;
     session = freshSession();
-    session.notes = trimWords(notes.value);
+    session.notes = trimWords(combinedNotes());
+    session.guessFirst = $("guess-first").checked;
+    await startRound();
+  });
+
+  async function startRound(avoid = []) {
     quizBtn.classList.add("busy"); quizBtn.disabled = true; notes.disabled = true;
     meta.textContent = "Writing your questions…";
     try {
-      const data = await api("/api/questions", { notes: session.notes });
+      const data = await api("/api/questions", { notes: session.notes, avoid });
       if (!data.ok) { setNotice(data.reason, "error"); return; }
       session.questions = data.questions;
+      session.concepts = data.concepts || [];
+      session.summary = data.summary || null;
+      session.answers = []; session.index = 0;
       setNotice("");
       renderQuestion();
     } catch (err) {
       setNotice(friendly(err), "error");
+      if (session.round === 2) show("read");   // stay on the read screen so they can retry from there
     } finally {
       quizBtn.classList.remove("busy"); notes.disabled = false; updateIntake();
     }
-  });
-
-  function friendly(err) {
-    if (err.code === "missing_key" || err.code === "bad_key") return err.message + " See README.md for setup.";
-    return err.code ? err.message : "Something went wrong talking to the AI. Nothing was lost — try again.";
   }
 
+  // ----- Read screen (guess-first, between round 1 and round 2) -----
+  function renderRead() {
+    const r1 = summarize(session.round1, QUESTION_COUNT, session.concepts);
+    screens.read.innerHTML = `
+      <p class="eyebrow-line">Round 1 done: ${fmt(r1.score)} of ${QUESTION_COUNT} before reading.</p>
+      <h2 class="headline">Now read your notes.</h2>
+      <p class="lede">Guessing first primes you for what matters. Read with the questions you just missed in mind, then take a fresh round.</p>
+      <div class="notes-view">${esc(session.notes).replace(/\n\n---\n\n/g, "<hr>").replace(/\n/g, "<br>")}</div>
+      <div class="actions"><button class="btn primary" id="round2-btn" type="button">I've read it. Quiz me again</button></div>`;
+    show("read");
+    $("round2-btn").addEventListener("click", async () => {
+      session.round = 2;
+      $("round2-btn").classList.add("busy"); $("round2-btn").disabled = true;
+      await startRound(session.round1.map((a) => a.question));
+    });
+  }
+  const fmt = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+
   // ----- Question screen -----
+  function currentQ() { return session.fix ? session.fix.items[session.index] : session.questions[session.index]; }
+
   function renderQuestion() {
-    const q = session.questions[session.index];
+    const q = currentQ();
+    const canVoice = "SpeechRecognition" in window || "webkitSpeechRecognition" in window;
     screens.question.innerHTML = `
       ${status.mock ? '<span class="practice-tag">Practice mode: canned questions, no AI</span>' : ""}
+      ${session.fix ? '<p class="eyebrow-line">You were sure about this one. Second chance, new angle.</p>' : ""}
       <h2 class="question">${esc(q.question)}</h2>
       <label class="sr-only" for="answer">Your answer</label>
-      <textarea id="answer" rows="5" placeholder="Answer from memory. A sentence or two is enough." autocomplete="off"></textarea>
+      <div class="answer-wrap">
+        <textarea id="answer" rows="5" placeholder="Answer from memory. A sentence or two is enough." autocomplete="off"></textarea>
+        ${canVoice ? '<button type="button" class="btn quiet small voice" id="voice-btn" aria-pressed="false">Speak your answer</button>' : ""}
+      </div>
+      <div id="hints" class="hints" hidden></div>
       <span class="field-label" id="conf-label">How sure are you?</span>
       <div class="confidence" role="group" aria-labelledby="conf-label" id="confidence">
         ${CONFIDENCE.map((c) => `<button type="button" data-level="${c.level}" aria-pressed="false">${c.label}</button>`).join("")}
       </div>
       <div class="actions">
         <button class="btn primary" id="check-btn" type="button" disabled>Check answer</button>
-        <button class="btn quiet" id="idk-btn" type="button">I don't know</button>
+        <button class="btn quiet" id="hint-btn" type="button">${q.hints && q.hints.length ? "Get a hint" : "I don't know"}</button>
       </div>`;
-    show("question");
-    const answer = $("answer"), checkBtn = $("check-btn"), picker = $("confidence");
-    let confidence = null;
+    show("question", quizLabel());
+    session.startedAt = Date.now();
+    let confidence = null, hintsUsed = 0;
+    const answer = $("answer"), checkBtn = $("check-btn"), picker = $("confidence"), hintBtn = $("hint-btn"), hintsBox = $("hints");
     picker.addEventListener("click", (e) => {
       const btn = e.target.closest("button[data-level]");
       if (!btn) return;
@@ -155,27 +275,56 @@ if (typeof document !== "undefined") {
       for (const b of picker.querySelectorAll("button")) b.setAttribute("aria-pressed", String(b === btn));
       checkBtn.disabled = false;
     });
-    checkBtn.addEventListener("click", () => submitAnswer(answer.value, confidence));
-    $("idk-btn").addEventListener("click", () => recordAnswer({ userAnswer: "", confidence: "guessing", verdict: "wrong",
-      feedback: "Honest. Here's the answer to study.", correctAnswer: q.answer, skipped: true }));
+    checkBtn.addEventListener("click", () => submitAnswer(answer.value, confidence, hintsUsed));
+    hintBtn.addEventListener("click", () => {
+      const hints = q.hints || [];
+      if (hintsUsed < hints.length) {
+        hintsUsed += 1;
+        hintsBox.hidden = false;
+        hintsBox.innerHTML = hints.slice(0, hintsUsed).map((h, i) => `<p><span>Hint ${i + 1}</span>${esc(h)}</p>`).join("");
+        hintBtn.textContent = hintsUsed < hints.length ? `Another hint (${hints.length - hintsUsed} left)` : "Show the answer";
+        if (hintsUsed === 1) hintsBox.insertAdjacentHTML("beforeend", '<p class="meta">A right answer after hints counts half.</p>');
+        answer.focus();
+      } else {
+        recordAnswer({ ...IDK(q), hintsUsed });
+      }
+    });
+    if (canVoice) setupVoice($("voice-btn"), answer);
     answer.focus();
   }
 
-  async function submitAnswer(userAnswer, confidence) {
-    const q = session.questions[session.index];
-    if (!userAnswer.trim()) {   // an empty answer is the same as "I don't know"
-      return recordAnswer({ userAnswer: "", confidence: "guessing", verdict: "wrong",
-        feedback: "Honest. Here's the answer to study.", correctAnswer: q.answer, skipped: true });
-    }
+  function setupVoice(btn, answer) {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let rec = null;
+    btn.addEventListener("click", () => {
+      if (rec) { rec.stop(); return; }
+      rec = new SR();
+      rec.lang = document.documentElement.lang || "en";
+      rec.interimResults = false; rec.continuous = true;
+      btn.setAttribute("aria-pressed", "true"); btn.textContent = "Listening… tap to stop";
+      rec.onresult = (e) => {
+        const text = Array.from(e.results).slice(e.resultIndex).map((r) => r[0].transcript).join(" ").trim();
+        answer.value = (answer.value.trim() + " " + text).trim();
+      };
+      rec.onerror = () => { btn.textContent = "Mic unavailable"; };
+      rec.onend = () => { rec = null; btn.setAttribute("aria-pressed", "false"); if (btn.textContent.startsWith("Listening")) btn.textContent = "Speak your answer"; };
+      rec.start();
+    });
+  }
+
+  async function submitAnswer(userAnswer, confidence, hintsUsed) {
+    const q = currentQ();
+    const ms = Date.now() - session.startedAt;
+    if (!userAnswer.trim()) return recordAnswer({ ...IDK(q), hintsUsed, ms });   // empty = I don't know
     const checkBtn = $("check-btn");
-    checkBtn.classList.add("busy"); checkBtn.disabled = true; $("idk-btn").disabled = true; $("answer").disabled = true;
+    checkBtn.classList.add("busy"); checkBtn.disabled = true; $("hint-btn").disabled = true; $("answer").disabled = true;
     try {
       const grade = await api("/api/grade", { question: q.question, referenceAnswer: q.answer, userAnswer, notes: session.notes });
-      recordAnswer({ userAnswer, confidence, ...grade, skipped: false });
+      recordAnswer({ userAnswer, confidence, ...grade, skipped: false, hintsUsed, ms });
     } catch (err) {
-      showQuestionError(friendly(err), () => submitAnswer(userAnswer, confidence));
+      showQuestionError(friendly(err), () => submitAnswer(userAnswer, confidence, hintsUsed));
     } finally {
-      checkBtn.classList.remove("busy"); checkBtn.disabled = false; $("idk-btn").disabled = false; $("answer").disabled = false;
+      checkBtn.classList.remove("busy"); checkBtn.disabled = false; $("hint-btn").disabled = false; $("answer").disabled = false;
     }
   }
 
@@ -187,51 +336,117 @@ if (typeof document !== "undefined") {
   }
 
   function recordAnswer(entry) {
-    const q = session.questions[session.index];
-    session.answers[session.index] = { question: q.question, referenceAnswer: q.answer, ...entry };
+    const q = currentQ();
+    const list = session.fix ? session.fix.answers : session.answers;
+    list[session.index] = { question: q.question, referenceAnswer: q.answer, concept: q.concept, hintsUsed: 0, ms: null, ...entry };
     renderFeedback();
   }
 
   // ----- Feedback screen -----
   const VERDICT = { right: "Right", partly: "Partly right", wrong: "Wrong" };
   function renderFeedback() {
-    const a = session.answers[session.index];
-    const last = session.index === QUESTION_COUNT - 1;
-    const conf = CONFIDENCE.find((c) => c.level === a.confidence);
+    const list = session.fix ? session.fix.answers : session.answers;
+    const total = session.fix ? session.fix.items.length : QUESTION_COUNT;
+    const a = list[session.index];
+    const last = session.index === total - 1;
+    const nextLabel = last ? (session.fix ? "Back to results" : session.guessFirst && session.round === 1 ? "Read your notes" : session.summary ? "One more thing" : "See results") : "Next question";
     screens.feedback.innerHTML = `
-      <p class="verdict ${a.verdict}">${VERDICT[a.verdict]}</p>
+      <p class="verdict ${a.verdict}">${VERDICT[a.verdict]}${a.hintsUsed && a.verdict === "right" ? '<span class="verdict-note">with hints, counts half</span>' : ""}</p>
       <p class="feedback-text">${esc(a.feedback)}</p>
       <div class="correct">
         <span class="correct-label">Correct answer, from your notes</span>
         <p>${esc(a.correctAnswer)}</p>
       </div>
-      <p class="meta">${a.skipped ? "You said you didn't know." : `You said you were ${conf.label.toLowerCase()}.`}${!a.skipped ? ` You wrote: <q>${esc(a.userAnswer)}</q>` : ""}</p>
-      <div class="actions"><button class="btn primary" id="next-btn" type="button">${last ? "See results" : "Next question"}</button></div>`;
-    show("feedback");
+      <p class="meta">${a.skipped ? "You said you didn't know." : `You said you were ${conf(a.confidence).label.toLowerCase()}.`}${!a.skipped ? ` You wrote: <q>${esc(a.userAnswer)}</q>` : ""}${a.ms != null && !a.skipped ? ` Answered in ${Math.max(1, Math.round(a.ms / 1000))}s.` : ""}</p>
+      <div class="actions"><button class="btn primary" id="next-btn" type="button">${nextLabel}</button></div>`;
+    show("feedback", quizLabel(1));
     $("next-btn").addEventListener("click", () => {
-      if (last) return renderResults();
-      session.index += 1;
-      renderQuestion();
+      if (!last) { session.index += 1; return renderQuestion(); }
+      if (session.fix) return finishFix();
+      if (session.guessFirst && session.round === 1) { session.round1 = session.answers; return renderRead(); }
+      if (session.summary) return renderSpot();
+      renderResults();
     });
     $("next-btn").focus();
   }
 
+  // ----- Spot the fake summary -----
+  function renderSpot() {
+    const sm = session.summary;
+    screens.spot.innerHTML = `
+      <p class="eyebrow-line">One more thing</p>
+      <h2 class="headline">One of these sentences is wrong.</h2>
+      <p class="lede">Here's an AI summary of your notes. It reads smoothly, and one sentence is false. Which one?</p>
+      <ol class="spot-list" id="spot-list">${sm.sentences.map((s, i) => `<li><button type="button" data-i="${i}">${esc(s)}</button></li>`).join("")}</ol>
+      <div id="spot-result" hidden></div>`;
+    show("spot", { label: "Spot the error", fill: 100 });
+    $("spot-list").addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-i]");
+      if (!btn || session.spot) return;
+      const picked = Number(btn.dataset.i);
+      session.spot = { picked, correct: picked === sm.wrongIndex };
+      for (const b of screens.spot.querySelectorAll("button[data-i]")) {
+        b.disabled = true;
+        if (Number(b.dataset.i) === sm.wrongIndex) b.classList.add("is-wrong-sentence");
+        else if (Number(b.dataset.i) === picked) b.classList.add("is-picked");
+      }
+      const box = $("spot-result");
+      box.hidden = false;
+      box.innerHTML = `<p class="verdict ${session.spot.correct ? "right" : "wrong"}">${session.spot.correct ? "You caught it." : "That one was true."}</p>
+        <p class="feedback-text">${esc(sm.explanation || "The highlighted sentence is the false one.")}</p>
+        <p class="meta">This is why a summary can feel like studying and still mislead you: it reads just as smoothly when it's wrong.</p>
+        <div class="actions"><button class="btn primary" id="to-results" type="button">See results</button></div>`;
+      $("to-results").addEventListener("click", renderResults);
+      $("to-results").focus();
+    });
+  }
+
+  // ----- Hypercorrection round -----
+  async function startFix(items, btn) {
+    btn.classList.add("busy"); btn.disabled = true;
+    try {
+      const data = await api("/api/followups", { notes: session.notes, items: items.map((a) => ({ question: a.question, correctAnswer: a.correctAnswer })) });
+      session.fix = { items: data.followUps.map((f, i) => ({ ...f, concept: items[i].concept, originalNumber: items[i].number })), answers: [] };
+      session.index = 0;
+      renderQuestion();
+    } catch (err) {
+      btn.classList.remove("busy"); btn.disabled = false;
+      const p = document.createElement("p"); p.className = "notice error"; p.textContent = friendly(err);
+      btn.closest(".fix-box").append(p);
+    }
+  }
+  function finishFix() {
+    session.fixDone = session.fix.answers;
+    session.fix = null;
+    renderResults();
+  }
+
   // ----- Results screen -----
   function renderResults() {
-    const r = summarize(session.answers);
-    const pct = (x) => Math.round(x * 100);
-    const label = (level) => CONFIDENCE.find((c) => c.level === level).label;
-    const fmt = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+    const r = summarize(session.answers, QUESTION_COUNT, session.concepts);
+    const r1 = session.round1 ? summarize(session.round1, QUESTION_COUNT, session.concepts) : null;
+    const label = (level) => conf(level).label;
     const lo = Math.min(r.confidence, r.accuracy), hi = Math.max(r.confidence, r.accuracy);
+    if (!session.saved) { saveRun(r); session.saved = true; }
+    const runs = loadRuns(); const prev = runs.length > 1 ? runs[runs.length - 2] : null;
+    const fixed = session.fixDone ? session.fixDone.filter((a) => a.verdict === "right").length : null;
+    const trapNumbers = new Set(r.fluencyTraps.map((a) => a.number));
+
     const item = (a) => `
-      <li class="study-item">
-        <span class="badge">${label(a.confidence)}</span>
+      <li class="study-item" data-n="${a.number}">
+        <span class="badge">${label(a.confidence)}</span>${trapNumbers.has(a.number) ? '<span class="badge trap">Fluency trap</span>' : ""}
         <p class="study-q">${esc(a.question)}</p>
         <p class="study-line"><span>You wrote</span>${a.skipped ? "<em>I don't know</em>" : esc(a.userAnswer)}</p>
         <p class="study-line"><span>Correct</span>${esc(a.correctAnswer)}</p>
+        <details class="teach">
+          <summary>Write the correction in your own words</summary>
+          <textarea rows="2" placeholder="One sentence, from memory, as you'd explain it to a friend."></textarea>
+          <div class="actions small-actions"><button type="button" class="btn small teach-btn">Check it</button><span class="teach-out" aria-live="polite"></span></div>
+        </details>
       </li>`;
+
     screens.results.innerHTML = `
-      <p class="score"><span class="score-num">${fmt(r.score)}</span><span class="score-of"> of ${QUESTION_COUNT}</span></p>
+      <p class="score"><span class="score-num">${fmt(r.score)}</span><span class="score-of"> of ${QUESTION_COUNT}</span>${r1 ? `<span class="score-before">up from ${fmt(r1.score)} before reading</span>` : ""}</p>
       <h2 class="headline results-headline">${esc(r.headline)}</h2>
 
       <div class="scale" role="img" aria-label="You felt ${pct(r.confidence)} percent sure on average and knew ${pct(r.accuracy)} percent.">
@@ -242,26 +457,100 @@ if (typeof document !== "undefined") {
         </div>
         <div class="scale-ends"><span>0%</span><span>100%</span></div>
       </div>
-      <p class="meta scale-note">Felt is your average confidence. Knew is your score. The highlighted part is the gap.</p>
+      <p class="meta scale-note">Felt is your average confidence. Knew is your score. The highlighted part is the gap.${prev ? ` Last run the gap was ${Math.abs(prev.felt - prev.knew)} points; now it's ${Math.abs(pct(r.confidence) - pct(r.accuracy))}.` : ""}</p>
+
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-num">${r.cbm.score}</span><span class="stat-label">of ${r.cbm.max} confidence-weighted points</span>
+          <p class="meta">Sure and right earns most; sure and wrong costs most. Had you marked every miss as Guessing, you'd have ${r.cbm.ifHonest}.</p>
+        </div>
+        ${r.fluencyTraps.length ? `<div class="stat"><span class="stat-num">${r.fluencyTraps.length}</span><span class="stat-label">fluency trap${r.fluencyTraps.length === 1 ? "" : "s"}</span><p class="meta">Answered in under ${FAST_MS / 1000} seconds, Certain, and wrong. That's the feeling of knowing without the knowing.</p></div>` : ""}
+        ${session.spot ? `<div class="stat"><span class="stat-num">${session.spot.correct ? "Caught" : "Missed"}</span><span class="stat-label">the false sentence in the AI summary</span></div>` : ""}
+        ${fixed != null ? `<div class="stat"><span class="stat-num">${fixed} of ${session.fixDone.length}</span><span class="stat-label">fixed on the second try</span></div>` : ""}
+      </div>
+
+      ${r.blindSpots.length ? `<h3 class="section-title">Blind-spot map</h3>
+      <ul class="spots">${r.blindSpots.map((b) => `<li class="spot ${b.status}"><span class="spot-dot"></span>${esc(b.name)}<span class="meta"> ${({ untested: "not tested this run", right: "right", missed: "missed", "sure-wrong": "sure but wrong" })[b.status]}</span></li>`).join("")}</ul>` : ""}
 
       <h3 class="section-title">Study these first</h3>
       ${r.studyFirst.length
-        ? `<p class="meta">Answers you were sure about that didn't hold up.</p><ol class="study">${r.studyFirst.map(item).join("")}</ol>`
+        ? `<p class="meta">Answers you were sure about that didn't hold up.</p>
+           ${fixed == null ? `<div class="fix-box"><button type="button" class="btn primary" id="fix-btn">Fix these now</button><span class="meta"> A second question on each, from a new angle. Confident mistakes are the easiest to correct once you see them.</span></div>` : ""}
+           <ol class="study">${r.studyFirst.map(item).join("")}</ol>`
         : `<p class="empty">Nothing to flag. Every answer you were sure about was right.</p>`}
 
+      ${r.counts.right < QUESTION_COUNT ? `<h3 class="section-title">Come back to it</h3>
+      <p class="meta">Spaced review beats one long session. Export what you missed and see it again in 1, 3 and 7 days.</p>
+      <div class="actions small-actions"><button type="button" class="btn small" id="anki-btn">Download for Anki</button><button type="button" class="btn small" id="ics-btn">Add reminders to calendar</button></div>` : ""}
+
+      <h3 class="section-title">Share the shape, not the notes</h3>
+      <pre class="card" id="card">${esc(shareCard(session.answers, r))}</pre>
+      <div class="actions small-actions"><button type="button" class="btn small" id="copy-btn">Copy</button><span class="meta" id="copy-out"></span></div>
+
       <details class="all">
-        <summary>All ${QUESTION_COUNT} answers</summary>
-        <ol class="all-list">${session.answers.map((a, i) => `
-          <li><span class="v ${a.verdict}">${VERDICT[a.verdict]}</span> <span class="meta">${a.skipped ? "didn't know" : label(a.confidence).toLowerCase()}</span><p>${esc(a.question)}</p></li>`).join("")}</ol>
+        <summary>All ${QUESTION_COUNT} answers${r1 ? " (round 2)" : ""}</summary>
+        <ol class="all-list">${session.answers.map((a) => `
+          <li><span class="v ${a.verdict}">${VERDICT[a.verdict]}</span> <span class="meta">${a.skipped ? "didn't know" : label(a.confidence).toLowerCase()}${a.hintsUsed ? `, ${a.hintsUsed} hint${a.hintsUsed === 1 ? "" : "s"}` : ""}</span><p>${esc(a.question)}</p></li>`).join("")}</ol>
       </details>
 
       <div class="actions"><button class="btn primary" id="again-btn" type="button">Try again with new notes</button></div>`;
     show("results");
+
     $("again-btn").addEventListener("click", () => {
       session = freshSession();
-      notes.value = ""; setNotice(""); updateIntake();
+      notes.value = ""; notesB.value = ""; $("guess-first").checked = false; setNotice(""); updateIntake(); renderTrend();
       show("start"); notes.focus();
     });
+    const fixBtn = $("fix-btn");
+    if (fixBtn) fixBtn.addEventListener("click", () => startFix(r.studyFirst, fixBtn));
+    for (const el of screens.results.querySelectorAll(".teach-btn")) el.addEventListener("click", () => checkCorrection(el));
+    $("copy-btn").addEventListener("click", async () => {
+      const text = $("card").textContent;
+      try { await navigator.clipboard.writeText(text); $("copy-out").textContent = "Copied."; }
+      catch { $("copy-out").textContent = "Select the text above and copy it."; }
+    });
+    const missedList = session.answers.filter((a) => a.verdict !== "right");
+    const ankiBtn = $("anki-btn"), icsBtn = $("ics-btn");
+    if (ankiBtn) ankiBtn.addEventListener("click", () => download("recall-first.txt", "text/plain", missedList.map((a) => `${tsv(a.question)}\t${tsv(a.correctAnswer)}`).join("\n")));
+    if (icsBtn) icsBtn.addEventListener("click", () => download("recall-first-review.ics", "text/calendar", ics(missedList)));
+  }
+
+  async function checkCorrection(btn) {
+    const li = btn.closest(".study-item");
+    const a = session.answers[Number(li.dataset.n) - 1];
+    const text = li.querySelector("textarea").value;
+    const out = li.querySelector(".teach-out");
+    if (!text.trim()) { out.textContent = "Write a sentence first."; return; }
+    btn.classList.add("busy"); btn.disabled = true;
+    try {
+      const g = await api("/api/grade", { question: a.question, referenceAnswer: a.correctAnswer, userAnswer: text, notes: session.notes });
+      out.innerHTML = `<span class="v ${g.verdict}">${VERDICT[g.verdict]}.</span> ${esc(g.feedback)}`;
+    } catch (err) {
+      out.textContent = friendly(err);
+    } finally {
+      btn.classList.remove("busy"); btn.disabled = false;
+    }
+  }
+
+  // ----- exports -----
+  const tsv = (s) => s.replace(/[\t\n]+/g, " ");
+  function download(name, type, content) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([content], { type }));
+    a.download = name; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  function ics(items) {
+    const stamp = (d) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+    const escI = (s) => s.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/[,;]/g, (m) => `\\${m}`);
+    const body = items.map((a, i) => `${i + 1}. ${a.question}`).join("\\n");
+    const events = [1, 3, 7].map((days) => {
+      const d = new Date(); d.setDate(d.getDate() + days); d.setHours(9, 0, 0, 0);
+      const end = new Date(d.getTime() + 15 * 60 * 1000);
+      return ["BEGIN:VEVENT", `UID:recallfirst-${Date.now()}-${days}@recall-first`, `DTSTAMP:${stamp(new Date())}`, `DTSTART:${stamp(d)}`, `DTEND:${stamp(end)}`,
+        `SUMMARY:Recall First review (day ${days})`, `DESCRIPTION:${escI("Answer these from memory, then check your notes:")}\\n${escI(body)}`, "END:VEVENT"].join("\r\n");
+    });
+    return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Recall First//EN", ...events, "END:VCALENDAR"].join("\r\n");
   }
 
   // ----- boot -----
@@ -271,4 +560,5 @@ if (typeof document !== "undefined") {
     updateIntake();
   }).catch(() => updateIntake());
   updateIntake();
+  renderTrend();
 }

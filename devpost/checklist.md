@@ -69,6 +69,26 @@ Build mode: fast
   Learner check: Follow the README from a fresh clone, run one quiz end to end, and say what still feels rough.
   Commit: `Handle errors and edge cases, add README`
 
+- [x] **7. The thirteen expansion features, all usable in one run**
+  Becomes usable: Hint ladder, voice input, certainty-based marking, fluency traps, spot the false sentence, hypercorrection round, teach the gap, blind-spot map, guess-first rounds, a second notes set, Anki/.ics export, share card, local trend.
+  Why now: The proof of concept was complete and reviewed in slices 1–6; the learner then asked for every distinctive feature. Each deepens the calibration kernel, so they share the existing session object and the two schemas.
+  PRD ref: `prd.md > Expansion After the Proof of Concept`
+  Spec ref: `spec.md > Expansion features (page side)`, `spec.md > The AI module`, `spec.md > Shared route handlers`
+  Build: Questions schema gains concepts, hints and a planted-error summary; `/api/followups`; Read and Spot screens; results sections; `summarize` extended; tests extended.
+  Verify (mechanical): `npm test` (10 passing); practice-mode browser run covering hints, exhausted hints, fluency trap, spot round, results stats, teach-the-gap grading, fix round (1 of 2), trend stored; a second run covering mixed notes (206 words counted), guess-first rounds 1 and 2 with zero question overlap, read screen, "up from 0 before reading".
+  Learner check: Run a quiz with the sample notes, use a hint on one question, answer one fast and Certain but wrong, catch the false sentence, then press Fix these now.
+  Commit: `Add hints, calibration scoring, spot-the-error, fix round and exports`
+
+- [x] **8. Deployed on Vercel from the GitHub repo**
+  Becomes usable: A public URL serving the same app; API routes run as Vercel functions.
+  Why now: Last, because it only packages what already works.
+  PRD ref: `prd.md > Expansion After the Proof of Concept > Deployment`
+  Spec ref: `spec.md > Deployment (Vercel)`
+  Build: `lib/routes.js` + `lib/vercel.js` + `api/*.js`, `vercel.json`; Vercel project linked to `LSUDOKO/recall-first`; `RECALL_MOCK=1` until the learner adds `ANTHROPIC_API_KEY`.
+  Verify (mechanical): Production URL returns the page and `/api/status`; a practice-mode quiz completes on the live site.
+  Learner check: Open the live URL, run a quiz; then add `ANTHROPIC_API_KEY` in Vercel, remove `RECALL_MOCK`, redeploy, run a real one.
+  Commit: `Deploy to Vercel`
+
 ## Hands-on Checkpoints
 
 - [ ] Early usable behavior explored — after slice 2 (questions appear from real notes)
@@ -95,4 +115,6 @@ Activity mode: Reference route prepared from live code and practice-mode runs; g
 - Look and Feel changed from "warm paper + editorial serif + ember accent" to "chalk paper + IBM Plex + one highlighter yellow for the felt/knew gap" — the first direction matched the most common AI-generated styling and would not have read as the learner's own brand. `prd.md > Look and Feel` and `spec.md > Look and Feel` updated to match; the two-bar comparison became a single calibration scale with the gap highlighted.
 - Slices 3 and 4 were built and committed together — once practice-mode grading existed, wiring Check answer to `/api/grade` was the natural way to verify the confidence picker, so splitting them would have meant a throw-away stub.
 - Slice 2 built the whole Question screen markup (answer box, picker, buttons) rather than "question display only" — the screen is one template string; rendering it in two halves made no sense.
+- Scope expanded past the proof of concept at the learner's explicit request after the POC was complete; recorded as slices 7–8 and `prd.md > Expansion After the Proof of Concept` rather than rewriting the approved scope.
+- `trimWords` now keeps paragraph breaks unless it has to cut — the first version flattened whitespace, which erased the `---` separator between two note sets on the Read screen.
 - Live AI calls could not be exercised in the build session because no `ANTHROPIC_API_KEY` was available in the environment; every slice was verified in practice mode plus `npm test`, and the live path is exercised at the first hands-on checkpoint once the key is in `.env`.

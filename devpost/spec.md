@@ -145,8 +145,32 @@ JSON body, validate inputs, call `lib/ai.js`, validate the model's JSON, respond
 `503 { error: "missing_key" }` if `ANTHROPIC_API_KEY` is unset and mock mode is off.
 PRD ref: `prd.md > States and Boundaries` (AI error, missing key).
 
+### Deployment (Vercel)
+`api/status.js`, `api/questions.js`, `api/grade.js`, `api/followups.js` each wrap one handler
+from `lib/routes.js` with `lib/vercel.js`; `public/` is served as static files. `vercel.json`
+raises the function timeout to 60 s for the Opus call. Env vars on Vercel: `ANTHROPIC_API_KEY`
+(live) or `RECALL_MOCK=1` (practice mode until a key is added). Local dev keeps `server.js`.
+PRD ref: `prd.md > Expansion After the Proof of Concept > Deployment`.
+
+### Shared route handlers
+`lib/routes.js`: `handlers.status / questions / grade / followups` take a parsed body and return
+data or throw `{status, code}`; `errorResponse` maps a throw to `{status, body}`. Both hosts use it.
+
+### Expansion features (page side)
+All in `public/app.js`, driven by the same `session` object: hint ladder (`renderQuestion`),
+voice (`setupVoice`, Web Speech API, feature-detected), spot-the-false-sentence (`renderSpot`),
+hypercorrection (`startFix` → `/api/followups` → the normal question/feedback loop with
+`session.fix` set), teach-the-gap (`checkCorrection` → `/api/grade`), guess-first (`session.round`,
+`renderRead`, `startRound(avoid)`), second notes set (`combinedNotes`, sets joined by a `---`
+line), exports (`download`, `ics`), share card (`shareCard`), local trend (`saveRun`,
+`renderTrend`, `localStorage` key `recallfirst.runs`). Maths for certainty-based marking,
+fluency traps and the blind-spot map live in `summarize` and are covered by `npm test`.
+PRD ref: `prd.md > Expansion After the Proof of Concept`.
+
 ### The AI module
-`lib/ai.js`: two functions, `generateQuestions(notes)` and `gradeAnswer({...})`. Each builds a
+`lib/ai.js`: `generateQuestions(notes, {avoid})`, `gradeAnswer({...})` and
+`generateFollowUps({items, notes})`. The questions schema also returns `concepts`, three `hints`
+per question and a `summary` with one planted false sentence. Each builds a
 system prompt, calls `client.messages.create` with `output_config: { format: { type:
 "json_schema", schema } }`, parses the text block with `JSON.parse`, and checks the shape.
 Also hosts the mock implementations behind `RECALL_MOCK`.
@@ -181,9 +205,13 @@ answers where verdict ≠ right and confidence ∈ {fairly, certain}, Certain fi
 
 ```
 recall-first/
-├── server.js            # Node http server: static files + /api/questions + /api/grade
+├── server.js            # local Node http server: static files + /api/* via lib/routes.js
+├── api/                 # Vercel functions: status.js, questions.js, grade.js, followups.js
+├── vercel.json          # function timeout
 ├── lib/
-│   └── ai.js            # Claude calls with JSON-schema output, validation, mock mode
+│   ├── ai.js            # Claude calls with JSON-schema output, validation, mock mode
+│   ├── routes.js        # the four handlers, host-independent
+│   └── vercel.js        # wraps a handler as a Vercel function
 ├── public/
 │   ├── index.html       # four <section> screens, brand mark, fonts
 │   ├── styles.css       # design tokens (palette, type) and components

@@ -33,17 +33,28 @@
       <form id="start-form" novalidate>
         <label class="sr-only" for="notes">Your notes</label>
         <textarea id="notes" rows="11" placeholder="Paste lecture notes, a textbook section, or your own summary. About a page is ideal." spellcheck="false" autocomplete="off"></textarea>
+        <div id="notes-b-wrap" hidden>
+          <label class="field-label" for="notes-b">Second set of notes, mixed in with the first</label>
+          <textarea id="notes-b" rows="6" placeholder="Paste a second topic. Questions will alternate between the two." spellcheck="false" autocomplete="off"></textarea>
+        </div>
+        <div class="options">
+          <button type="button" class="btn quiet" id="add-set-btn">Mix in a second set of notes</button>
+          <label class="check"><input type="checkbox" id="guess-first"> <span>Guess first: I haven't read these yet. Quiz me, then let me read, then quiz me again.</span></label>
+        </div>
         <div class="intake-row">
           <p class="meta" id="word-meta" aria-live="polite">0 words. Paste about 100 more to start.</p>
           <button class="btn primary" id="quiz-btn" type="submit" disabled>Quiz me</button>
         </div>
         <p class="notice" id="start-notice" role="status" aria-live="polite" hidden></p>
       </form>
-      <p class="fineprint">Questions come only from your notes. No summary first, no multiple choice. Nothing is saved.</p>
+      <p class="fineprint">Questions come only from your notes. No summary first, no multiple choice. Your notes are never stored; only your calibration score is kept, in this browser.</p>
+      <div id="trend" class="trend" hidden></div>
     </section>
 
+    <section id="screen-read" class="screen" hidden></section>
     <section id="screen-question" class="screen" hidden></section>
     <section id="screen-feedback" class="screen" hidden></section>
+    <section id="screen-spot" class="screen" hidden></section>
     <section id="screen-results" class="screen" hidden></section>
 
   </main>

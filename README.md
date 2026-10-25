@@ -21,6 +21,26 @@ recognising one (Rowland 2014), and testing makes your confidence judgments more
 (Barenberg & Dutke 2018). Recall First is a small, honest version of that loop: no summary
 first, no multiple choice, and a confidence rating captured before every result.
 
+## What makes it different
+
+Everything is built around one idea: the gap between what you *feel* you know and what you can
+actually recall.
+
+- **Confidence before every result**, then a calibration scale: felt vs knew, gap highlighted.
+- **Certainty-based marking**: being sure and wrong costs more than admitting doubt.
+- **Fluency traps**: answered fast, Certain, and wrong. The feeling of knowing without the knowing.
+- **Spot the false sentence**: an AI summary of your notes with one planted error. Can you catch it?
+- **Fix these now**: a second question on each sure-but-wrong item, from a new angle (hypercorrection).
+- **Teach the gap**: write the correction in your own words; it's checked against your notes.
+- **Blind-spot map**: which concepts in your notes were right, missed, sure-but-wrong, or untested.
+- **Hint ladder** instead of answers; a right answer after hints counts half.
+- **Guess first**: quiz before you read, read, quiz again with new questions.
+- **Mix in a second set of notes**; questions alternate between them.
+- **Come back to it**: export missed questions for Anki or as 1/3/7-day calendar reminders.
+- **Share the shape, not the notes**: a Wordle-style card with no content in it.
+- **Local trend**: felt/knew per run kept only in your browser.
+- **Speak your answer** where the browser supports it.
+
 ## Run it
 
 You need Node.js 22 or newer and an Anthropic API key.
@@ -47,6 +67,12 @@ the screens without a key. The demo uses the real model.
 **Model:** defaults to `claude-opus-5-5`. Set `RECALL_MODEL=claude-sonnet-5-5` in `.env` for
 a cheaper, faster option.
 
+## Deploy it
+
+The repo deploys to Vercel as-is: `public/` is static, `api/*.js` are functions sharing
+`lib/`. Set `ANTHROPIC_API_KEY` in the project's environment variables (or `RECALL_MOCK=1` to
+run practice mode publicly without a key). Live: https://recall-first.vercel.app
+
 ## How it works
 
 ```
@@ -56,7 +82,8 @@ browser (public/)  --POST /api/questions {notes}-->  server.js  --> lib/ai.js --
                    <-- {verdict: right|partly|wrong, feedback, correctAnswer} --
 ```
 
-- `server.js` serves the page and the two API routes. Node's built-in `http`, no framework.
+- `server.js` serves the page and the API routes locally (Node's built-in `http`, no framework);
+  `api/*.js` serve the same routes on Vercel. Both use `lib/routes.js`.
 - `lib/ai.js` calls Claude with a system prompt and a **JSON schema** (`output_config.format`)
   so the reply always has the expected shape, then validates it anyway.
 - `public/app.js` holds the whole session in one in-memory object and renders the four screens:
@@ -70,8 +97,11 @@ your progress), missing or rejected key (setup message).
 ## Project layout
 
 ```
-server.js              Node http server: static files + /api/questions + /api/grade
+server.js              local Node http server: static files + /api/*
+api/                   Vercel functions (status, questions, grade, followups)
 lib/ai.js              Claude calls with JSON-schema output, validation, practice mode
+lib/routes.js          the API handlers, shared by server.js and api/
+lib/vercel.js          wraps a handler as a Vercel function
 public/index.html      page shell and the four screens
 public/styles.css      design tokens and components
 public/app.js          session object, screen rendering, fetch calls, summarize()
@@ -80,10 +110,11 @@ samples/               example notes to paste
 devpost/               scope, PRD, spec, checklist and app map from the Devpost Learn skills
 ```
 
-## Later
+## Built in two stages
 
-Guess-first questions before reading new material, spaced review of missed questions, a
-hint-only mode, saved history. See `devpost/prd.md > Possible Later Enhancements`.
+Slices 1–6 in `devpost/checklist.md` are the proof of concept the hackathon asks for: one loop,
+end to end. Slices 7–8 add the features above and the deployment; `devpost/prd.md > Expansion
+After the Proof of Concept` records what and why.
 
 ## License
 

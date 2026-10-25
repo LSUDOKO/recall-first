@@ -139,7 +139,8 @@ No back button (looking back at a question after seeing its answer defeats the p
   Try again button that repeats the same request. Pasted text and progress are kept.
 - **Missing API key** — the server tells the page the key is not configured and the Start
   screen shows a plain setup message pointing to the README.
-- **Nothing persists** — a browser refresh returns to Start. The app stores nothing anywhere.
+- **Nothing persists except the trend** — a browser refresh returns to Start. Notes and answers
+  are never stored; only felt/knew/overconfidence per run is kept in local storage.
 - **Session shape** — 5 questions, always; no fewer, no more.
 
 ## Product Decisions
@@ -162,6 +163,67 @@ Everything under Features and Behavior and States and Boundaries, as four screen
 browser page backed by a small server that talks to the AI: paste → 5 questions → answer +
 confidence → grade + feedback → results with confidence-vs-accuracy and Study these first →
 try again.
+
+## Expansion After the Proof of Concept
+The proof of concept above was completed first (see `checklist.md`, slices 1–6). The learner then
+asked for the full set of distinctive features and a public deployment; these are now built and
+cited by `spec.md > Components`. Each one deepens the kernel (calibration) rather than widening
+the product.
+
+### Hint ladder
+"I don't know" becomes "Get a hint": three hints, weakest first, then "Show the answer". A right
+answer after any hint counts half. Hints never contain the full answer.
+
+### Certainty-based marking
+Beside the plain score, a confidence-weighted score: Guessing +1/0, Unsure +2/−1, Fairly sure
++3/−3, Certain +4/−8 (partly right earns half the win). Shown with "had you marked every miss as
+Guessing you'd have N" so the cost of overconfidence is a number.
+
+### Fluency traps
+An answer given in under 8 seconds, marked Certain, and graded Wrong is flagged as a fluency
+trap on the results screen and on its Study-these-first card.
+
+### Spot the false sentence
+After the fifth answer, a three-sentence AI summary of the notes is shown; exactly one sentence
+is false. The learner picks one, sees which was false and why, and the result is recorded.
+
+### Hypercorrection round ("Fix these now")
+From Results, one new question per sure-but-wrong item, from a different angle. Graded like the
+main quiz; Results then shows "N of M fixed on the second try".
+
+### Teach the gap
+Each Study-these-first card has "Write the correction in your own words"; the sentence is graded
+against the notes and the verdict shown inline.
+
+### Blind-spot map
+The AI labels 4–6 concepts in the notes; Results shows each as right, missed, sure but wrong, or
+not tested this run.
+
+### Guess first
+A Start option: round 1 before reading, then a Read screen showing the notes, then round 2 with
+new questions. Results shows the score "up from N before reading".
+
+### Mix in a second set of notes
+A second paste box; questions alternate between the sets.
+
+### Spaced return
+Download the missed questions as an Anki text file, or add three calendar reminders (1, 3 and 7
+days) as an .ics file. No account, no server storage.
+
+### Share the shape
+A Wordle-style text card (verdict boxes, sure/not-sure dots, felt vs knew) copied to the
+clipboard. Contains no notes or answers.
+
+### Local trend
+Felt, knew and overconfidence per run kept in the browser's local storage only (last 20 runs),
+shown on Start as small bars and on Results as a comparison with the previous run. Clearable.
+
+### Speak your answer
+Where the browser supports speech recognition, a button dictates into the answer box.
+
+### Deployment
+The same code runs on Vercel: `api/*.js` functions and `public/` static files. Deployment does
+not replace the demo video.
 
 ## Deferred From the POC
 - **Saving sessions / history** — needs storage and identity; a single run proves the idea.

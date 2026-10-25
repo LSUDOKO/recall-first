@@ -131,7 +131,7 @@ q { quotes: "“" "”"; font-style: italic; }
 .marker.knew { background: var(--paper); border: 3px solid var(--ink); }
 .scale-ends { display: flex; justify-content: space-between; margin-top: 30px; font-size: 13px; color: var(--muted); }
 .scale-note { margin-bottom: 48px; }
-.section-title { font: 500 26px/1.25 var(--serif); margin: 0 0 8px; }
+.section-title { font: 500 26px/1.25 var(--serif); margin: 44px 0 8px; }
 .empty { color: var(--muted); margin: 8px 0 0; }
 .study { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 14px; }
 .study-item { padding: 18px 20px; background: var(--card); border: 1px solid var(--rule); border-radius: 6px; }
@@ -147,3 +147,65 @@ q { quotes: "“" "”"; font-style: italic; }
 .v { font-weight: 500; }
 .v.right { color: var(--right); } .v.partly { color: var(--partly); } .v.wrong { color: var(--wrong); }
 #screen-results .actions { margin-top: 44px; }
+
+/* Start options, trend */
+.options { margin-top: 14px; display: grid; gap: 10px; }
+.check { display: flex; gap: 10px; align-items: flex-start; font-size: 16px; color: var(--muted); cursor: pointer; max-width: 56ch; }
+.check input { margin-top: 5px; accent-color: var(--ink); }
+.btn.small { padding: 8px 14px; font-size: 15px; }
+.btn.quiet.small { padding: 6px 2px; }
+.trend { margin-top: 36px; padding-top: 18px; border-top: 1px solid var(--rule); }
+.bars { display: flex; gap: 8px; align-items: flex-end; height: 56px; margin: 10px 0 6px; }
+.bar { position: relative; width: 22px; height: 100%; border-bottom: 1px solid var(--rule); }
+.bar i { position: absolute; bottom: 0; width: 9px; }
+.bar .felt { left: 1px; background: var(--ink); }
+.bar .knew { right: 1px; background: var(--mark); }
+.eyebrow-line { margin: 0 0 10px; color: var(--muted); font-size: 16px; }
+
+/* Read screen */
+.notes-view { padding: 22px 24px; background: var(--card); border: 1px solid var(--rule); border-radius: 6px;
+  font: 400 18px/1.7 var(--serif); max-height: 60vh; overflow: auto; }
+.notes-view hr { border: 0; border-top: 1px solid var(--rule); margin: 18px 0; }
+
+/* Hints, voice */
+.answer-wrap { position: relative; }
+.voice { margin-top: 6px; }
+.hints { margin: 14px 0 0; padding: 12px 16px; border-left: 3px solid var(--mark); background: var(--card); }
+.hints p { margin: 4px 0; font-size: 16px; }
+.hints p span { display: inline-block; min-width: 58px; color: var(--muted); }
+.verdict-note { display: block; font: 400 16px/1.4 var(--sans); color: var(--muted); margin-top: 4px; }
+
+/* Spot the error */
+.spot-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; counter-reset: s; }
+.spot-list li { counter-increment: s; }
+.spot-list button { width: 100%; text-align: left; padding: 16px 18px 16px 52px; position: relative; background: var(--card);
+  border: 1px solid var(--rule); border-radius: 6px; cursor: pointer; font: 400 18px/1.5 var(--serif); transition: border-color .15s; }
+.spot-list button::before { content: counter(s); position: absolute; left: 18px; top: 16px; color: var(--muted); font: 500 15px/1.6 var(--sans); }
+.spot-list button:hover:not(:disabled) { border-color: var(--ink); }
+.spot-list button:disabled { cursor: default; }
+.spot-list button.is-wrong-sentence { background: var(--mark); border-color: var(--mark); }
+.spot-list button.is-picked { border-color: var(--wrong); }
+#spot-result { margin-top: 28px; }
+
+/* Results extras */
+.score-before { display: block; font: 400 16px/1.4 var(--sans); color: var(--muted); margin-top: 6px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 0; }
+.stat { padding: 16px 18px; border-top: 2px solid var(--ink); }
+.stat-num { display: block; font: 500 34px/1.1 var(--serif); letter-spacing: -0.02em; }
+.stat-label { display: block; margin-top: 2px; color: var(--muted); font-size: 15px; }
+.stat .meta { margin-top: 8px; font-size: 15px; }
+.spots { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+.spot { display: flex; align-items: center; gap: 10px; }
+.spot-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--ink); background: transparent; flex: none; }
+.spot.right .spot-dot { background: var(--right); border-color: var(--right); }
+.spot.missed .spot-dot { background: var(--wrong); border-color: var(--wrong); }
+.spot.sure-wrong .spot-dot { background: var(--mark); border-color: var(--ink); }
+.spot.untested { color: var(--muted); }
+.badge.trap { background: transparent; border: 1px solid var(--wrong); color: var(--wrong); margin-left: 6px; }
+.fix-box { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 14px 0 6px; }
+.teach { margin-top: 12px; border-top: 1px solid var(--rule); padding-top: 10px; }
+.teach summary { cursor: pointer; font-size: 15px; color: var(--muted); }
+.teach textarea { min-height: 64px; margin-top: 10px; font-size: 16px; }
+.small-actions { margin-top: 10px; gap: 12px; }
+.card { font: 15px/1.6 ui-monospace, "IBM Plex Mono", Menlo, monospace; background: var(--card); border: 1px solid var(--rule);
+  border-radius: 6px; padding: 14px 16px; white-space: pre-wrap; margin: 10px 0 0; }
