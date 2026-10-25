@@ -19,3 +19,4 @@ node_modules/
 # Android local build output and signing key
 android/build/
 android/debug.keystore
+*.idsig
