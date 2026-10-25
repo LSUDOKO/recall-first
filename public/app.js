@@ -81,7 +81,12 @@ if (typeof document !== "undefined") {
   }
 
   async function api(path, body) {
-    const res = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    let res;
+    try {
+      res = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    } catch {
+      throw Object.assign(new Error("Couldn't reach the server. Is it still running? Nothing was lost — try again."), { code: "offline" });
+    }
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw Object.assign(new Error(data.message || "Something went wrong talking to the AI."), { code: data.error, status: res.status });
     return data;
@@ -121,7 +126,7 @@ if (typeof document !== "undefined") {
 
   function friendly(err) {
     if (err.code === "missing_key" || err.code === "bad_key") return err.message + " See README.md for setup.";
-    return err.message || "Something went wrong talking to the AI. Nothing was lost — try again.";
+    return err.code ? err.message : "Something went wrong talking to the AI. Nothing was lost — try again.";
   }
 
   // ----- Question screen -----
