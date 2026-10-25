@@ -1,0 +1,17 @@
+# dependencies
+node_modules/
+
+# local credentials — never commit real keys
+.env
+.env.*
+!.env.example
+
+# personal learning context (Devpost Learn)
+/devpost/learner-profile.md
+
+# OS / editor noise
+.DS_Store
+*.log
+
+# browser-check artifacts
+.playwright-mcp/

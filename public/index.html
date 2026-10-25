@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Recall First</title>
+  <meta name="description" content="Find out what you only think you know. Paste notes, answer from memory, rate your confidence, see where you were sure and wrong.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/" aria-label="Recall First, home">
+      <svg class="mark" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <circle cx="9.2" cy="14.6" r="4" fill="currentColor"/>
+      </svg>
+      <span>Recall First</span>
+    </a>
+    <span class="progress-label" id="progress-label" hidden></span>
+  </header>
+  <div class="progress" id="progress" hidden><div class="progress-fill" id="progress-fill"></div></div>
+
+  <main id="app">
+
+    <section id="screen-start" class="screen">
+      <h1 class="headline">Find out what you only think you know.</h1>
+      <p class="lede">Paste your notes. Answer five questions from memory, saying how sure you are before each result. Then see exactly where you were sure, and wrong.</p>
+
+      <form id="start-form" novalidate>
+        <label class="sr-only" for="notes">Your notes</label>
+        <textarea id="notes" rows="11" placeholder="Paste lecture notes, a textbook section, or your own summary. About a page is ideal." spellcheck="false" autocomplete="off"></textarea>
+        <div class="intake-row">
+          <p class="meta" id="word-meta" aria-live="polite">0 words. Paste about 100 more to start.</p>
+          <button class="btn primary" id="quiz-btn" type="submit" disabled>Quiz me</button>
+        </div>
+        <p class="notice" id="start-notice" role="status" aria-live="polite" hidden></p>
+      </form>
+      <p class="fineprint">Questions come only from your notes. No summary first, no multiple choice. Nothing is saved.</p>
+    </section>
+
+    <section id="screen-question" class="screen" hidden></section>
+    <section id="screen-feedback" class="screen" hidden></section>
+    <section id="screen-results" class="screen" hidden></section>
+
+  </main>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
