@@ -4,15 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Recall First</title>
-  <meta name="description" content="Find out what you only think you know. Paste notes, answer from memory, rate your confidence, see where you were sure and wrong.">
+  <meta name="description" content="Paste your notes, answer five questions from memory, rate your confidence first, and see exactly where you were sure and wrong. Based on research on retrieval practice.">
+  <meta property="og:title" content="Recall First">
+  <meta property="og:description" content="Find out what you only think you know. Paste notes, answer from memory, see where confidence and knowledge disagree.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://recall-first.vercel.app/">
+  <meta name="theme-color" content="#F5F4F0">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="landing.css">
 </head>
-<body>
-  <header class="top">
+<body class="landing">
+  <header class="nav">
     <a class="brand" href="/" aria-label="Recall First, home">
       <svg class="mark" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
         <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.6"/>
@@ -20,44 +26,144 @@
       </svg>
       <span>Recall First</span>
     </a>
-    <span class="progress-label" id="progress-label" hidden></span>
+    <nav class="nav-links" aria-label="Site">
+      <a href="#how">How it works</a>
+      <a href="#features">What it does</a>
+      <a href="#research">Research</a>
+      <a href="https://github.com/LSUDOKO/recall-first">Source</a>
+      <a class="btn primary small" href="/app">Open the app</a>
+    </nav>
   </header>
-  <div class="progress" id="progress" hidden><div class="progress-fill" id="progress-fill"></div></div>
 
-  <main id="app">
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <h1 class="display">Find out what you only think you know.</h1>
+        <p class="lede">Paste your notes. Answer five questions from memory, saying how sure you are before each result. Recall First shows you the gap between what you felt you knew and what you could actually recall, and tells you what to study first.</p>
+        <div class="actions hero-actions">
+          <a class="btn primary" href="/app">Quiz me on my notes</a>
+          <a class="btn quiet" href="#how">See how it works</a>
+        </div>
+        <p class="meta">No account. Your notes are never stored. Works with any subject you have notes for.</p>
+      </div>
 
-    <section id="screen-start" class="screen">
-      <h1 class="headline">Find out what you only think you know.</h1>
-      <p class="lede">Paste your notes. Answer five questions from memory, saying how sure you are before each result. Then see exactly where you were sure, and wrong.</p>
-
-      <form id="start-form" novalidate>
-        <label class="sr-only" for="notes">Your notes</label>
-        <textarea id="notes" rows="11" placeholder="Paste lecture notes, a textbook section, or your own summary. About a page is ideal." spellcheck="false" autocomplete="off"></textarea>
-        <div id="notes-b-wrap" hidden>
-          <label class="field-label" for="notes-b">Second set of notes, mixed in with the first</label>
-          <textarea id="notes-b" rows="6" placeholder="Paste a second topic. Questions will alternate between the two." spellcheck="false" autocomplete="off"></textarea>
+      <figure class="demo" aria-label="Example results screen: 2 of 5, you were Certain on 3 answers and got 2 of them wrong, felt 80 percent, knew 40 percent.">
+        <div class="demo-chrome"><span></span><span></span><span></span></div>
+        <div class="demo-body">
+          <p class="score"><span class="score-num">2</span><span class="score-of"> of 5</span></p>
+          <h2 class="headline results-headline">You were Certain on 3 answers — and got 2 of them wrong.</h2>
+          <div class="scale">
+            <div class="track">
+              <div class="gap demo-gap"></div>
+              <div class="marker felt demo-felt"><span>Felt 80%</span></div>
+              <div class="marker knew demo-knew"><span>Knew 40%</span></div>
+            </div>
+            <div class="scale-ends"><span>0%</span><span>100%</span></div>
+          </div>
+          <div class="study-item demo-item">
+            <span class="badge">Certain</span><span class="badge trap">Fluency trap</span>
+            <p class="study-q">What does the hippocampus do during sleep, according to your notes?</p>
+            <p class="study-line"><span>You wrote</span>It stores short-term memories.</p>
+            <p class="study-line"><span>Correct</span>It replays the day's patterns and transfers them to the neocortex for long-term storage.</p>
+          </div>
         </div>
-        <div class="options">
-          <button type="button" class="btn quiet" id="add-set-btn">Mix in a second set of notes</button>
-          <label class="check"><input type="checkbox" id="guess-first"> <span>Guess first: I haven't read these yet. Quiz me, then let me read, then quiz me again.</span></label>
-        </div>
-        <div class="intake-row">
-          <p class="meta" id="word-meta" aria-live="polite">0 words. Paste about 100 more to start.</p>
-          <button class="btn primary" id="quiz-btn" type="submit" disabled>Quiz me</button>
-        </div>
-        <p class="notice" id="start-notice" role="status" aria-live="polite" hidden></p>
-      </form>
-      <p class="fineprint">Questions come only from your notes. No summary first, no multiple choice. Your notes are never stored; only your calibration score is kept, in this browser.</p>
-      <div id="trend" class="trend" hidden></div>
+        <figcaption class="meta">A results screen, from the sample notes in the repo.</figcaption>
+      </figure>
     </section>
 
-    <section id="screen-read" class="screen" hidden></section>
-    <section id="screen-question" class="screen" hidden></section>
-    <section id="screen-feedback" class="screen" hidden></section>
-    <section id="screen-spot" class="screen" hidden></section>
-    <section id="screen-results" class="screen" hidden></section>
+    <section class="band problem">
+      <h2 class="section-h">Summaries feel like studying. They aren't.</h2>
+      <div class="cols">
+        <p>Ask an AI to summarise your notes and you get a smooth paragraph that reads as if you already know it. That smoothness is the problem: fluency of reading gets mistaken for knowledge, and people stop studying too early.</p>
+        <p>Recall First never explains first. You answer, you commit to a confidence, and only then do you see the result. The thing it measures is the one most study tools ignore: whether your confidence is earned.</p>
+      </div>
+    </section>
 
+    <section id="how" class="band">
+      <h2 class="section-h">How it works</h2>
+      <ol class="steps">
+        <li>
+          <span class="step-n">1</span>
+          <h3>Paste your notes</h3>
+          <p>Lecture notes, a textbook section, your own summary. About a page is ideal. Mix in a second topic if you like.</p>
+        </li>
+        <li>
+          <span class="step-n">2</span>
+          <h3>Answer from memory</h3>
+          <p>Five short-answer questions written only from your text. The notes are hidden. Type or speak your answer, then say how sure you are: Guessing, Unsure, Fairly sure, or Certain.</p>
+        </li>
+        <li>
+          <span class="step-n">3</span>
+          <h3>Get an honest grade</h3>
+          <p>Right, partly right, or wrong, with a line of feedback and the correct answer quoted from your notes. Paraphrases count. Half-answers get half credit.</p>
+        </li>
+        <li>
+          <span class="step-n">4</span>
+          <h3>See the gap</h3>
+          <p>Your felt confidence next to your real score, the answers you were sure about but got wrong, and a second chance at exactly those.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section id="features" class="band">
+      <h2 class="section-h">Built around one idea: is your confidence earned?</h2>
+      <div class="feature-groups">
+        <div class="group">
+          <h3>Catch the illusion</h3>
+          <ul>
+            <li><strong>Calibration scale.</strong> Felt vs knew on one line, the gap highlighted.</li>
+            <li><strong>Certainty-based marking.</strong> Sure and right earns most; sure and wrong costs most. You see what honesty would have scored.</li>
+            <li><strong>Fluency traps.</strong> Answered fast, Certain, and wrong: the feeling of knowing without the knowing.</li>
+            <li><strong>Spot the false sentence.</strong> An AI summary of your notes with one planted error. It reads just as smoothly.</li>
+          </ul>
+        </div>
+        <div class="group">
+          <h3>Close the gap</h3>
+          <ul>
+            <li><strong>Fix these now.</strong> A new question on each confident miss, from a different angle. High-confidence errors are the easiest to correct once seen.</li>
+            <li><strong>Teach the gap.</strong> Write the correction in your own words; it's checked against your notes.</li>
+            <li><strong>Hints, not answers.</strong> Three hints, weakest first. A right answer after a hint counts half.</li>
+            <li><strong>Blind-spot map.</strong> Which concepts in your notes were right, missed, sure-but-wrong, or never tested.</li>
+          </ul>
+        </div>
+        <div class="group">
+          <h3>Make it stick</h3>
+          <ul>
+            <li><strong>Guess first.</strong> Quiz before you read, read, quiz again. Pretesting primes what matters.</li>
+            <li><strong>Come back to it.</strong> Export what you missed for Anki, or add 1, 3 and 7-day reminders to your calendar.</li>
+            <li><strong>Your trend.</strong> Felt and knew per run, kept only in your browser.</li>
+            <li><strong>Share the shape.</strong> A small card with your boxes and dots, none of your notes.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="research" class="band research">
+      <h2 class="section-h">Based on research on retrieval practice</h2>
+      <p class="lede">Recall First doesn't claim to raise your grades. It applies findings that are well replicated, and it is honest about what it measures.</p>
+      <ul class="papers">
+        <li><a href="https://consensus.app/papers/details/c5cee08032d85fd58244269b72d268a6/">Pan &amp; Rickard, 2018</a><span>Meta-analysis of 122 experiments: practice testing beats rereading, and the benefit transfers to new questions.</span></li>
+        <li><a href="https://consensus.app/papers/details/04c7eb0ad2bf5eb6b122f94da91c5edb/">Rowland, 2014</a><span>Recall tests help more than recognition tests. Typing an answer beats picking one.</span></li>
+        <li><a href="https://consensus.app/papers/details/262f1aaf7ac8598aab45e0a38197ce55/">Barenberg &amp; Dutke, 2018</a><span>After retrieval practice, students' confidence judgments become more accurate and less biased.</span></li>
+        <li><a href="https://doi.org/10.1073/pnas.2422633122">Bastani et al., 2025</a><span>Students with free access to an AI that gave answers did worse once it was removed; hints instead of answers reduced the harm.</span></li>
+      </ul>
+      <p class="meta">The testing effect is weaker for maths than for fact- and concept-heavy material; Recall First fits the latter best.</p>
+    </section>
+
+    <section class="band how-built">
+      <h2 class="section-h">Small, open, and private by design</h2>
+      <div class="cols">
+        <p>One Node server, one AI model, no database. Your notes travel in the request and nowhere else; the only thing kept is your felt-versus-knew score, in your own browser. The AI key lives on the server, never in the page.</p>
+        <p>The code is open and runs on your laptop with one command, or deploys as-is. It was planned before it was built: the scope, product requirements and technical spec are in the repository next to the code.</p>
+      </div>
+      <div class="actions"><a class="btn primary" href="/app">Open the app</a><a class="btn quiet" href="https://github.com/LSUDOKO/recall-first">Read the source</a></div>
+    </section>
   </main>
-  <script type="module" src="app.js"></script>
+
+  <footer class="foot">
+    <span>Recall First</span>
+    <span>Built for Devpost's Build With AI: Basics hackathon. MIT licensed.</span>
+    <a href="https://github.com/LSUDOKO/recall-first">github.com/LSUDOKO/recall-first</a>
+  </footer>
 </body>
 </html>

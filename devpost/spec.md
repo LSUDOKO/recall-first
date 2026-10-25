@@ -28,7 +28,7 @@ accounts) would add setup without proving the idea.
 ## The Core Journey Through the System
 PRD ref: `prd.md > The Core Journey`.
 
-1. You open `http://localhost:3000`. The server reads `public/index.html` (plus CSS and JS)
+1. You open `http://localhost:3000/app`. The server reads `public/app.html` (plus CSS and JS)
    from disk and sends it. You see the Start screen.
 2. You paste notes and press Quiz me. `public/app.js` checks the word count (100–2,500),
    trims if needed, then `POST /api/questions` with `{ notes }`.
@@ -75,10 +75,10 @@ Anthropic API key.
 git clone https://github.com/LSUDOKO/recall-first && cd recall-first
 npm install
 cp .env.example .env        # then paste your key: ANTHROPIC_API_KEY=sk-ant-...
-npm start                   # → http://localhost:3000
+npm start                   # → http://localhost:3000 (landing), /app (the quiz)
 ```
 
-For the demo recording: open `http://localhost:3000` at ~125 % zoom, paste real notes, run
+For the demo recording: open `http://localhost:3000/app` at ~125 % zoom, paste real notes, run
 the full loop, end on the Results screen. Deployment is optional and not planned for the
 submission; the server is a single file and would deploy to any Node host later.
 
@@ -112,7 +112,7 @@ Carried from `prd.md > Look and Feel`; implemented as CSS custom properties in
 ## Components
 
 ### The page shell and screen switcher
-`public/index.html` holds all four screens as `<section>` elements; `public/app.js` shows
+`public/app.html` holds all the quiz screens as `<section>` elements; `public/app.js` shows
 exactly one by toggling a `hidden` attribute and fading the new one in. Holds the single
 in-memory `session` object (notes, questions, answers, current index).
 PRD ref: `prd.md > Screens and Layout`.
@@ -213,7 +213,9 @@ recall-first/
 │   ├── routes.js        # the four handlers, host-independent
 │   └── vercel.js        # wraps a handler as a Vercel function
 ├── public/
-│   ├── index.html       # four <section> screens, brand mark, fonts
+│   ├── index.html       # landing page (what it is, how it works, research)
+│   ├── landing.css      # landing styles, reuses the tokens below
+│   ├── app.html         # the quiz: <section> screens, brand mark, fonts
 │   ├── styles.css       # design tokens (palette, type) and components
 │   └── app.js           # session object, screen switching, fetch calls, summarize()
 ├── test/

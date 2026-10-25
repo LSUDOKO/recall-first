@@ -117,4 +117,5 @@ Activity mode: Reference route prepared from live code and practice-mode runs; g
 - Slice 2 built the whole Question screen markup (answer box, picker, buttons) rather than "question display only" — the screen is one template string; rendering it in two halves made no sense.
 - Scope expanded past the proof of concept at the learner's explicit request after the POC was complete; recorded as slices 7–8 and `prd.md > Expansion After the Proof of Concept` rather than rewriting the approved scope.
 - `trimWords` now keeps paragraph breaks unless it has to cut — the first version flattened whitespace, which erased the `---` separator between two note sets on the Read screen.
+- A landing page was added at `/` and the quiz moved to `/app` (clean URLs locally and on Vercel) at the learner's request after deployment; the app itself is unchanged.
 - Live AI calls could not be exercised in the build session because no `ANTHROPIC_API_KEY` was available in the environment; every slice was verified in practice mode plus `npm test`, and the live path is exercised at the first hands-on checkpoint once the key is in `.env`.

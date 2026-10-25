@@ -31,8 +31,9 @@ async function readJson(req, limit = 200_000) {
 
 async function serveStatic(req, res) {
   const url = new URL(req.url, "http://x");
-  const file = path.normalize(path.join(PUBLIC_DIR, url.pathname === "/" ? "index.html" : url.pathname));
+  let file = path.normalize(path.join(PUBLIC_DIR, url.pathname === "/" ? "index.html" : url.pathname));
   if (!file.startsWith(PUBLIC_DIR)) return send(res, 403, "Forbidden", "text/plain");
+  if (!path.extname(file)) file += ".html";   // clean URLs: /app -> public/app.html (Vercel does the same via cleanUrls)
   try {
     send(res, 200, await fs.readFile(file), TYPES[path.extname(file)] || "application/octet-stream");
   } catch {

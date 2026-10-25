@@ -50,7 +50,7 @@ git clone https://github.com/LSUDOKO/recall-first.git
 cd recall-first
 npm install
 cp .env.example .env     # open .env and paste your key after ANTHROPIC_API_KEY=
-npm start                # then open http://localhost:3000
+npm start                # then open http://localhost:3000 (landing) or http://localhost:3000/app (the quiz)
 ```
 
 Try it with `samples/memory-and-learning.txt` if you don't have notes to hand.
@@ -102,7 +102,9 @@ api/                   Vercel functions (status, questions, grade, followups)
 lib/ai.js              Claude calls with JSON-schema output, validation, practice mode
 lib/routes.js          the API handlers, shared by server.js and api/
 lib/vercel.js          wraps a handler as a Vercel function
-public/index.html      page shell and the four screens
+public/index.html      landing page
+public/landing.css     landing page styles
+public/app.html        the quiz: page shell and its screens
 public/styles.css      design tokens and components
 public/app.js          session object, screen rendering, fetch calls, summarize()
 test/summarize.test.js score and overconfidence maths
