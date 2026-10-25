@@ -9,7 +9,7 @@ Build mode: fast
 
 ## Slices
 
-- [ ] **1. You can paste notes and the page tells you when there's enough to quiz on**
+- [x] **1. You can paste notes and the page tells you when there's enough to quiz on**
   Becomes usable: `npm start` serves the branded Start screen; the paste box shows a live word count, Quiz me unlocks at 100 words, and over 2,500 words a notice says only the first part will be used.
   Why now: Bootstraps the whole shape (server + static page + design tokens) around the first real behaviour, so every later slice lands on a running, on-brand page.
   PRD ref: `prd.md > The Core Journey` (steps 1–2), `prd.md > Pasting notes and starting a quiz`, `prd.md > Look and Feel`
@@ -19,7 +19,7 @@ Build mode: fast
   Learner check: Run `npm start`, open http://localhost:3000, paste a short note and then a long one, and say whether the Start screen looks like the brand you wanted.
   Commit: `Add Start screen with note intake and server`
 
-- [ ] **2. Quiz me turns your notes into five real questions**
+- [x] **2. Quiz me turns your notes into five real questions**
   Becomes usable: Pressing Quiz me calls the AI and shows Question 1 of 5 from the pasted text; non-study text shows the AI's "can't make questions" reason; a missing key shows the setup message.
   Why now: This is the first unfamiliar, risky piece (structured JSON from the model) and the first half of the kernel; finding out early that the schema call works protects everything after it.
   PRD ref: `prd.md > Pasting notes and starting a quiz`, `prd.md > States and Boundaries` (loading, not study material, missing key)
@@ -29,7 +29,7 @@ Build mode: fast
   Learner check: Paste real notes from a subject you know, press Quiz me, and check that the five questions come only from your notes.
   Commit: `Generate five questions from notes with structured output`
 
-- [ ] **3. You answer from memory and rate your confidence before anything is revealed**
+- [x] **3. You answer from memory and rate your confidence before anything is revealed**
   Becomes usable: Each question has an answer box and the four-step confidence picker; Submit unlocks only after a confidence is chosen; I don't know records Wrong + Guessing and shows the stored answer; Next question advances through all five.
   Why now: Captures the second half of the kernel — confidence before result — and the session shape, independent of grading, so grading can slot in next.
   PRD ref: `prd.md > Answering from memory with a confidence rating`, `prd.md > Screens and Layout` (Question, Feedback)
@@ -39,7 +39,7 @@ Build mode: fast
   Learner check: Answer a question, notice Submit is off until you pick a confidence, then try I don't know on another and see the correct answer appear.
   Commit: `Add answer, confidence picker and I don't know flow`
 
-- [ ] **4. Your typed answer is graded fairly, with feedback and the correct answer**
+- [x] **4. Your typed answer is graded fairly, with feedback and the correct answer**
   Becomes usable: Submit sends the answer for grading; Feedback shows Right / Partly right / Wrong, one or two lines of feedback, the correct answer from the notes, and your chosen confidence.
   Why now: Completes the per-question loop with the second AI call; the schema pattern from slice 2 is reused.
   PRD ref: `prd.md > Grading each answer`, `prd.md > States and Boundaries` (loading grading)
@@ -49,7 +49,7 @@ Build mode: fast
   Learner check: Answer one question correctly in your own words and one half-way; check the grades feel fair.
   Commit: `Grade answers with feedback and correct answer`
 
-- [ ] **5. The results screen shows where your confidence and your knowledge disagree**
+- [x] **5. The results screen shows where your confidence and your knowledge disagree**
   Becomes usable: After question 5: score, the calibration scale (felt vs knew with the gap highlighted), the headline sentence, Study these first, All answers, Try again.
   Why now: This is the demo moment and the payoff of the kernel; it needs all five answers to exist, which slices 3–4 provide.
   PRD ref: `prd.md > Results and the overconfidence check`, `prd.md > Look and Feel`
@@ -59,7 +59,7 @@ Build mode: fast
   Learner check: Run the whole quiz, answer two questions wrongly with Certain, and see whether the Results screen makes you want to study those two first.
   Commit: `Add results with calibration scale and study-first list`
 
-- [ ] **6. Errors, edge cases, README and polish**
+- [x] **6. Errors, edge cases, README and polish**
   Becomes usable: AI failures show the friendly message with a working Try again that keeps your notes and progress; empty Submit counts as I don't know; server caps notes at 2,500 words; README and `.env.example` let a stranger run it; keyboard focus and reduced motion respected; a final visual pass against the brand.
   Why now: Hardening belongs after the loop exists so every edge case is tested against real behaviour.
   PRD ref: `prd.md > States and Boundaries`, `prd.md > Look and Feel`
@@ -82,14 +82,17 @@ Build mode: fast
 
 - [ ] Learning activity complete — guided route, focused alternative, prior practice connected, or brief recap
 - [ ] Optional edit and transfer reflection addressed — offered/declined/already covered/not applicable as appropriate
-- [ ] `devpost/app-map.html` generated from finished code, checked, and shown, including a project-grounded practice to reuse
+- [x] `devpost/app-map.html` generated from finished code, checked, and shown, including a project-grounded practice to reuse
 
-Activity and evidence: [pending]
-Route and stops: [pending]
-Edit outcome: [pending]
-Reflection: [pending]
-Activity mode: [pending]
+Activity and evidence: The build ran as an autonomous session at the learner's request ("first plan things then implement"), so no guided walkthrough with the learner has happened yet. Evidence prepared for it: the learner's stated goal ("how an app sends a request to an AI model and uses the response") maps to `spec.md > The Core Journey Through the System`, the two schemas in `spec.md > External Services and Dependencies`, `lib/ai.js > askForJson`, and the verified `test/summarize.test.js` run (5 passing).
+Route and stops: Reference route in `devpost/app-map.html`: `public/app.js > submitAnswer` → `server.js > "POST /api/grade"` → `lib/ai.js > askForJson` → `public/app.js > renderFeedback`. Not yet toured with the learner.
+Edit outcome: Not yet offered (learner absent during the build). Suggested safe edit: change the Guessing label in `CONFIDENCE` in `public/app.js`.
+Reflection: Not yet offered.
+Activity mode: Reference route prepared from live code and practice-mode runs; guided activity pending the learner's first session with the running app.
 
 ## Revisions
 
 - Look and Feel changed from "warm paper + editorial serif + ember accent" to "chalk paper + IBM Plex + one highlighter yellow for the felt/knew gap" — the first direction matched the most common AI-generated styling and would not have read as the learner's own brand. `prd.md > Look and Feel` and `spec.md > Look and Feel` updated to match; the two-bar comparison became a single calibration scale with the gap highlighted.
+- Slices 3 and 4 were built and committed together — once practice-mode grading existed, wiring Check answer to `/api/grade` was the natural way to verify the confidence picker, so splitting them would have meant a throw-away stub.
+- Slice 2 built the whole Question screen markup (answer box, picker, buttons) rather than "question display only" — the screen is one template string; rendering it in two halves made no sense.
+- Live AI calls could not be exercised in the build session because no `ANTHROPIC_API_KEY` was available in the environment; every slice was verified in practice mode plus `npm test`, and the live path is exercised at the first hands-on checkpoint once the key is in `.env`.

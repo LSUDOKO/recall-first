@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recall First — app map</title>
+<style>
+  :root { --paper:#F5F4F0; --ink:#17213A; --muted:#5C6273; --rule:#D9DAD5; --mark:#F5E663; --card:#fff; }
+  html { background: var(--paper); color: var(--ink); font: 17px/1.55 "IBM Plex Sans", system-ui, sans-serif; }
+  body { margin: 0; padding: 40px 24px 80px; }
+  main { max-width: 720px; margin: 0 auto; }
+  h1, h2 { font-family: "IBM Plex Serif", Georgia, serif; font-weight: 500; letter-spacing: -0.01em; }
+  h1 { font-size: 34px; margin: 0 0 6px; } h2 { font-size: 24px; margin: 44px 0 10px; }
+  p { max-width: 62ch; } .muted { color: var(--muted); }
+  code { font: 15px/1.4 ui-monospace, "IBM Plex Mono", Menlo, monospace; background: var(--card); border: 1px solid var(--rule); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px; overflow: auto; font-size: 14px; }
+  ol.route { padding-left: 22px; } ol.route li { margin: 0 0 14px; }
+  .stop { display: block; font-weight: 500; }
+  mark { background: var(--mark); padding: 0 3px; }
+  details { border-top: 1px solid var(--rule); padding: 12px 0; } summary { cursor: pointer; font-weight: 500; }
+  svg text { font: 14px "IBM Plex Sans", system-ui, sans-serif; fill: var(--ink); }
+  svg .box { fill: var(--card); stroke: var(--ink); stroke-width: 1.2; }
+  svg .wire { stroke: var(--ink); stroke-width: 1.2; fill: none; marker-end: url(#arrow); }
+  svg .note { fill: var(--muted); font-size: 12px; }
+  ul.start li { margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Recall First — app map</h1>
+  <p class="muted">A take-home guide to where things live. Snapshot of commit <code>be45e0c</code>; the code can drift after this, so trust the files over the map.</p>
+
+  <h2>What it is, in three pieces</h2>
+  <p><strong>The page</strong> (<code>public/</code>) shows four screens and keeps the whole quiz in one in-memory object. <strong>The server</strong> (<code>server.js</code>) hands out the page files and answers two API requests. <strong>The AI module</strong> (<code>lib/ai.js</code>) is the only code that talks to Claude, and the only place the API key exists.</p>
+
+  <h2>One action, followed through the code</h2>
+  <p>You press <strong>Check answer</strong> on a question. Here is where that goes:</p>
+  <svg viewBox="0 0 700 250" width="100%" role="img" aria-label="Diagram: Check answer in the browser calls POST /api/grade on server.js, which calls gradeAnswer in lib/ai.js, which calls Claude with a JSON schema; the verdict comes back the same way and renders on the Feedback screen.">
+    <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#17213A"/></marker></defs>
+    <rect class="box" x="10" y="60" width="150" height="70" rx="6"/>
+    <text x="85" y="88" text-anchor="middle">public/app.js</text>
+    <text x="85" y="108" text-anchor="middle" class="note">submitAnswer()</text>
+    <rect class="box" x="230" y="60" width="150" height="70" rx="6"/>
+    <text x="305" y="88" text-anchor="middle">server.js</text>
+    <text x="305" y="108" text-anchor="middle" class="note">POST /api/grade</text>
+    <rect class="box" x="450" y="60" width="150" height="70" rx="6"/>
+    <text x="525" y="88" text-anchor="middle">lib/ai.js</text>
+    <text x="525" y="108" text-anchor="middle" class="note">gradeAnswer()</text>
+    <rect class="box" x="450" y="170" width="150" height="60" rx="6"/>
+    <text x="525" y="205" text-anchor="middle">Claude (JSON schema)</text>
+    <path class="wire" d="M160 85 L230 85"/>
+    <path class="wire" d="M380 85 L450 85"/>
+    <path class="wire" d="M525 130 L525 170"/>
+    <path class="wire" d="M600 200 C 660 200, 660 40, 600 40 L 100 40 L 100 60"/>
+    <text x="660" y="30" text-anchor="end" class="note">verdict, feedback, correctAnswer</text>
+    <text x="85" y="155" text-anchor="middle" class="note">renderFeedback()</text>
+  </svg>
+
+  <h2>The route (reference)</h2>
+  <p class="muted">Prepared from the finished code. It was not walked interactively in the build session; follow it yourself with the app running (<code>npm start</code>) and the files open.</p>
+  <ol class="route">
+    <li><span class="stop">Stop 1 — the input. <code>public/app.js</code>, search for <code>async function submitAnswer</code></span>
+      An empty answer becomes "I don't know" right here, without a request. Otherwise it builds the body (question, reference answer, your answer, the notes) and calls <code>api("/api/grade", …)</code>. The <code>api</code> helper a few lines above is the only <code>fetch</code> in the app.</li>
+    <li><span class="stop">Stop 2 — the server. <code>server.js</code>, search for <code>"POST /api/grade"</code></span>
+      Reads the JSON body, checks the four fields are strings, and hands them to <code>gradeAnswer</code>. The <code>routes</code> table is the whole API: two entries plus status.</li>
+    <li><span class="stop">Stop 3 — the AI call. <code>lib/ai.js</code>, search for <code>async function askForJson</code></span>
+      One <code>client.messages.create</code> with a system prompt, your text, and <code>output_config.format</code> set to a JSON schema. The reply text is <code>JSON.parse</code>d and then checked (<code>gradeAnswer</code> verifies the verdict is one of three words). The key is read by <code>new Anthropic()</code> from the environment at the top of the file.</li>
+    <li><span class="stop">Back to the screen. <code>public/app.js</code>, search for <code>function renderFeedback</code></span>
+      The grade is stored in <code>session.answers[session.index]</code> and the Feedback screen is built from that entry. After question five, <code>summarize(session.answers)</code> turns the same array into the Results screen.</li>
+  </ol>
+
+  <h2>To change this, start here</h2>
+  <ul class="start">
+    <li><strong>Number of questions</strong> — <code>QUESTION_COUNT</code> in <code>lib/ai.js</code> and <code>public/app.js</code> (both).</li>
+    <li><strong>How strict the grading is</strong> — <code>GRADE_PROMPT</code> in <code>lib/ai.js</code>.</li>
+    <li><strong>What counts as "sure but wrong"</strong> — <code>studyFirst</code> inside <code>summarize()</code> in <code>public/app.js</code>; the test in <code>test/summarize.test.js</code> will tell you if you broke the maths.</li>
+    <li><strong>The headline sentences</strong> — the <code>headline</code> branches in <code>summarize()</code>.</li>
+    <li><strong>Colours and fonts</strong> — the <code>:root</code> block at the top of <code>public/styles.css</code>. The highlighter is <code>--mark</code>.</li>
+    <li><strong>Word limits</strong> — <code>MIN_WORDS</code> / <code>MAX_WORDS</code> in <code>lib/ai.js</code> (server) and <code>public/app.js</code> (page).</li>
+  </ul>
+
+  <h2>A practice to reuse</h2>
+  <p>The decision that saved the most trouble: <mark>ask the model for a fixed shape, then check it anyway</mark>. <code>spec.md &gt; External Services and Dependencies</code> wrote the two schemas down before any code; <code>lib/ai.js</code> sends them as <code>output_config.format</code> and still validates the parsed reply (five non-empty questions, a verdict from the allowed three). The page never has to guess whether a string is JSON or prose. On another project, write the response shape into the spec first, send it as a schema, and keep a small validation step on your side; the error messages you get are then about your data, not about parsing.</p>
+  <p>A second one: the score maths lives in a pure function (<code>summarize</code>) that a test can call without a browser or an AI, which is why the Results screen could be verified in seconds (<code>npm test</code>).</p>
+
+  <details>
+    <summary>Run it again</summary>
+    <pre>npm install
+cp .env.example .env      # add ANTHROPIC_API_KEY
+npm start                 # http://localhost:3000
+RECALL_MOCK=1 npm start   # practice mode, no AI calls
+npm test                  # score maths</pre>
+  </details>
+</main>
+</body>
+</html>
