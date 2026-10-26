@@ -1,6 +1,6 @@
 // Recall First — the page. One in-memory session object, a handful of screens, four fetch calls.
 export const MIN_WORDS = 100;
-export const MAX_WORDS = 2500;
+export const MAX_WORDS = 6000;
 export const QUESTION_COUNT = 5;
 export const FAST_MS = 8000;             // ponytail: fixed cutoff for "answered fast"; make it relative to the learner's median if it misfires
 export const CONFIDENCE = [
@@ -114,6 +114,7 @@ export function shareCard(answers, summary) {
 
 // Everything below touches the DOM; skip it when imported by a test.
 if (typeof document !== "undefined") {
+  const { extract, ACCEPT } = await import("./sources.js");
   const $ = (id) => document.getElementById(id);
   const screens = Object.fromEntries(["start", "read", "question", "feedback", "spot", "results"].map((k) => [k, $(`screen-${k}`)]));
   const notes = $("notes"), notesB = $("notes-b"), meta = $("word-meta"), quizBtn = $("quiz-btn"), notice = $("start-notice");
@@ -257,11 +258,63 @@ if (typeof document !== "undefined") {
   }
 
   // ----- Start screen -----
-  const combinedNotes = () => notesB.closest("#notes-b-wrap").hidden || !notesB.value.trim() ? notes.value : `${notes.value.trim()}\n\n---\n\n${notesB.value.trim()}`;
+  // ----- Sources (NotebookLM-style): uploaded files become switchable chips -----
+  const sources = [];   // { id, name, kind, text, pages, words, on }
+  const fileInput = $("file-input"), drop = $("drop"), list = $("sources");
+  fileInput.accept = ACCEPT;
+  $("browse-btn").addEventListener("click", () => fileInput.click());
+  drop.addEventListener("click", (e) => { if (e.target === drop || e.target.tagName === "P" || e.target.tagName === "svg") fileInput.click(); });
+  fileInput.addEventListener("change", () => { const files = [...fileInput.files]; fileInput.value = ""; addFiles(files); });
+  for (const ev of ["dragenter", "dragover"]) drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); });
+  for (const ev of ["dragleave", "drop"]) drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); });
+  drop.addEventListener("drop", (e) => addFiles([...e.dataTransfer.files]));
+  async function addFiles(files) {
+    for (const file of files) {
+      const src = { id: Math.random().toString(36).slice(2), name: file.name, kind: "", text: "", pages: null, words: 0, on: true, loading: true };
+      sources.push(src); renderSources();
+      try {
+        const r = await extract(file, (p, n) => { src.progress = `${p}/${n}`; renderSources(); });
+        Object.assign(src, r, { words: countWords(r.text), loading: false });
+        sfx.tap();
+      } catch (err) {
+        src.loading = false; src.error = err.message || "Couldn't read that file.";
+      }
+      renderSources(); updateIntake();
+    }
+  }
+  const KIND = { pdf: "PDF", docx: "Word", text: "Text" };
+  function renderSources() {
+    list.innerHTML = sources.map((s) => `
+      <li class="source ${s.on ? "" : "off"} ${s.error ? "bad" : ""}" data-id="${s.id}">
+        <span class="src-kind">${s.error ? "!" : KIND[s.kind] || "…"}</span>
+        <span class="src-main"><span class="src-name">${esc(s.name)}</span>
+          <span class="src-meta">${s.loading ? `Reading${s.progress ? ` page ${s.progress}` : ""}…` : s.error ? esc(s.error) : `${s.words.toLocaleString()} words${s.pages ? `, ${s.pages} page${s.pages === 1 ? "" : "s"}` : ""}`}</span></span>
+        ${s.loading || s.error ? "" : `<label class="switch" title="Use this source"><input type="checkbox" ${s.on ? "checked" : ""} data-act="toggle" aria-label="Use ${esc(s.name)}"><span></span></label>`}
+        <button type="button" class="icon-btn" data-act="remove" aria-label="Remove ${esc(s.name)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      </li>`).join("");
+  }
+  list.addEventListener("click", (e) => {
+    const li = e.target.closest(".source"); if (!li) return;
+    const i = sources.findIndex((s) => s.id === li.dataset.id);
+    const act = e.target.closest("[data-act]")?.dataset.act;
+    if (act === "remove") { sources.splice(i, 1); renderSources(); updateIntake(); }
+  });
+  list.addEventListener("change", (e) => {
+    const li = e.target.closest(".source"); if (!li) return;
+    const s = sources.find((x) => x.id === li.dataset.id); s.on = e.target.checked; renderSources(); updateIntake();
+  });
+
+  // Every switched-on source plus pasted text, separated by a line of dashes so questions spread across them.
+  const combinedNotes = () => {
+    const parts = sources.filter((s) => s.on && s.text).map((s) => s.text);
+    if (notes.value.trim()) parts.push(notes.value.trim());
+    if (!notesB.closest("#notes-b-wrap").hidden && notesB.value.trim()) parts.push(notesB.value.trim());
+    return parts.join("\n\n---\n\n");
+  };
   function updateIntake() {
     const n = countWords(combinedNotes());
     quizBtn.disabled = n < MIN_WORDS || !status.ready;
-    if (n === 0) meta.textContent = "0 words. Paste about 100 more to start.";
+    if (n === 0) meta.textContent = "Add a source or paste about 100 words to start.";
     else if (n < MIN_WORDS) meta.textContent = `${n} words. Paste a bit more, about ${MIN_WORDS - n} more, so the questions have something to work with.`;
     else meta.textContent = `${n.toLocaleString()} words`;
     if (n > MAX_WORDS) setNotice(`That's a lot. Only the first ${MAX_WORDS.toLocaleString()} words will be used.`);
@@ -609,7 +662,7 @@ if (typeof document !== "undefined") {
 
     $("again-btn").addEventListener("click", () => {
       session = freshSession();
-      notes.value = ""; notesB.value = ""; $("guess-first").checked = false; setNotice(""); updateIntake(); renderTrend();
+      notes.value = ""; notesB.value = ""; $("guess-first").checked = false; sources.length = 0; renderSources(); setNotice(""); updateIntake(); renderTrend();
       show("start"); notes.focus();
     });
     const fixBtn = $("fix-btn");

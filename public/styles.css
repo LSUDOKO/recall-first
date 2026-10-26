@@ -323,3 +323,32 @@ q { quotes: "“" "”"; font-style: italic; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- sources (upload) ---------- */
+.drop { display: grid; justify-items: center; text-align: center; gap: 6px; padding: 26px 20px; cursor: pointer;
+  border: 2px dashed rgba(92, 157, 255, .45); border-radius: var(--r-md); background: rgba(31, 107, 255, .07); color: var(--brand-core);
+  transition: background .15s, border-color .15s, transform .15s; }
+.drop:hover, .drop.over { background: rgba(31, 107, 255, .16); border-color: var(--brand-bright); }
+.drop.over { transform: scale(1.01); }
+.drop p { margin: 0; color: var(--text); }
+.drop .meta { color: var(--faint); }
+.link-btn { appearance: none; border: 0; background: none; padding: 0; color: var(--brand-bright); font-weight: 700; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.sources { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.source { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; background: var(--glass); border: 1px solid var(--stroke);
+  animation: pop .4s var(--spring) both; }
+.source.off { opacity: .55; }
+.source.bad { border-color: rgba(255, 107, 107, .5); }
+.src-kind { flex: none; width: 46px; height: 34px; display: grid; place-items: center; border-radius: 10px; font: 800 12px/1 var(--sans);
+  color: #fff; background: linear-gradient(180deg, var(--brand-bright), var(--brand)); box-shadow: 0 3px 0 var(--brand-deep); }
+.source.bad .src-kind { background: var(--wrong); box-shadow: 0 3px 0 var(--wrong-deep); }
+.src-main { display: grid; min-width: 0; flex: 1; }
+.src-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.src-meta { font-size: 13px; color: var(--faint); }
+.switch { position: relative; width: 42px; height: 24px; flex: none; cursor: pointer; }
+.switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.switch span { position: absolute; inset: 0; border-radius: 999px; background: rgba(194, 220, 255, .18); transition: background .15s; }
+.switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .2s var(--spring); }
+.switch input:checked + span { background: var(--brand); }
+.switch input:checked + span::after { transform: translateX(18px); }
+.switch input:focus-visible + span { outline: 2px solid var(--brand-bright); outline-offset: 2px; }
+#notes { min-height: 150px; }

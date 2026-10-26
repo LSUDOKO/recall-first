@@ -43,19 +43,19 @@ actually recall.
 
 ## Run it
 
-You need Node.js 22 or newer and an Anthropic API key.
+You need Node.js 22 or newer and a Groq API key (free tier) or an Anthropic API key.
 
 ```bash
 git clone https://github.com/LSUDOKO/recall-first.git
 cd recall-first
 npm install
-cp .env.example .env     # open .env and paste your key after ANTHROPIC_API_KEY=
+cp .env.example .env     # open .env and paste your key after GROQ_API_KEY=
 npm start                # then open http://localhost:3000 (landing) or http://localhost:3000/app (the quiz)
 ```
 
-Try it with `samples/memory-and-learning.txt` if you don't have notes to hand.
+Add your notes as sources (PDF, Word .docx, text or Markdown; drag and drop, several at once, each switchable) or paste text. Files are read in the browser and never uploaded; only the extracted text goes to the model. Try `samples/memory-and-learning.txt` if you don't have notes to hand.
 
-The key is read by the server only (`lib/ai.js`); it never reaches the browser. `.env` is in
+The key is read by the server only (`lib/ai.js`); it never reaches the browser. With `ANTHROPIC_API_KEY` the app uses Claude; otherwise `GROQ_API_KEY` uses `openai/gpt-oss-120b` on Groq with strict JSON-schema output. `.env` is in
 `.gitignore`, so it will not be committed.
 
 **Practice mode (no AI calls):** `RECALL_MOCK=1 npm start` serves canned questions built from
@@ -64,8 +64,7 @@ the screens without a key. The demo uses the real model.
 
 **Tests:** `npm test` checks the score and overconfidence maths (`public/app.js > summarize`).
 
-**Model:** defaults to `claude-opus-5-5`. Set `RECALL_MODEL=claude-sonnet-5-5` in `.env` for
-a cheaper, faster option.
+**Model:** `openai/gpt-oss-120b` on Groq or `claude-opus-5-5` on Claude; override with `RECALL_MODEL`.
 
 ## Android
 

@@ -33,13 +33,21 @@
     <section id="screen-start" class="screen">
       <div class="coach big">
         <img src="img/mascot-idle.webp" alt="" width="132">
-        <p class="bubble pop" id="start-bubble">Paste your notes. I'll ask five questions, you tell me how sure you are. Then we find out if you were right to be.</p>
+        <p class="bubble pop" id="start-bubble">Add your notes: PDFs, Word files or pasted text. I'll ask five questions, you tell me how sure you are. Then we find out if you were right to be.</p>
       </div>
       <h1 class="headline">Find out what you only think you know.</h1>
 
       <form id="start-form" novalidate>
         <label class="sr-only" for="notes">Your notes</label>
-        <textarea id="notes" rows="11" placeholder="Paste lecture notes, a textbook section, or your own summary. About a page is ideal." spellcheck="false" autocomplete="off"></textarea>
+        <div class="drop" id="drop">
+          <input type="file" id="file-input" multiple hidden>
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+          <p><strong>Add sources</strong>: drop PDFs, Word files, text or Markdown here, or <button type="button" class="link-btn" id="browse-btn">browse</button>.</p>
+          <p class="meta">Text is read on your device. Files are never uploaded or stored.</p>
+        </div>
+        <ul class="sources" id="sources" aria-live="polite"></ul>
+        <label class="field-label" for="notes">Or paste notes</label>
+        <textarea id="notes" rows="8" placeholder="Paste lecture notes, a textbook section, or your own summary. About a page is ideal." spellcheck="false" autocomplete="off"></textarea>
         <div id="notes-b-wrap" hidden>
           <label class="field-label" for="notes-b">Second set of notes, mixed in with the first</label>
           <textarea id="notes-b" rows="6" placeholder="Paste a second topic. Questions will alternate between the two." spellcheck="false" autocomplete="off"></textarea>
