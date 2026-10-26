@@ -296,6 +296,7 @@ if (typeof document !== "undefined") {
       questions: [], answers: [], index: 0, spot: null, fix: null, startedAt: 0 };
   }
 
+  const touch = window.matchMedia("(pointer: coarse)").matches;
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const pct = (x) => Math.round(x * 100);
   const IDK = (q) => ({ userAnswer: "", confidence: "guessing", verdict: "wrong", feedback: "Honest. Here's the answer to study.", correctAnswer: q.answer, skipped: true });
@@ -556,7 +557,7 @@ if (typeof document !== "undefined") {
       }
     });
     setupMic($("mic-btn"), answer);
-    answer.focus();
+    if (!touch) answer.focus();   // on phones, don't pop the keyboard over the question
   }
 
   async function submitAnswer(userAnswer, confidence, hintsUsed) {
@@ -822,7 +823,7 @@ if (typeof document !== "undefined") {
     $("again-btn").addEventListener("click", () => {
       session = freshSession();
       notes.value = ""; notesB.value = ""; $("guess-first").checked = false; sources.length = 0; renderSources(); $("sample-btn").hidden = false; setNotice(""); updateIntake(); renderTrend();
-      show("start"); notes.focus();
+      show("start"); if (!touch) notes.focus();
     });
     const fixBtn = $("fix-btn");
     if (fixBtn) fixBtn.addEventListener("click", () => startFix(r.studyFirst, fixBtn));

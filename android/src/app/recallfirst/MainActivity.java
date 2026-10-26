@@ -3,7 +3,11 @@ package app.recallfirst;
 import android.Manifest;
 import android.app.Activity;
 import android.content.pm.PackageManager;
+import android.graphics.Insets;
+import android.os.Build;
 import android.os.Bundle;
+import android.view.WindowInsets;
+import android.widget.FrameLayout;
 import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
@@ -38,7 +42,20 @@ public class MainActivity extends Activity {
         requestPermissions(new String[] { Manifest.permission.RECORD_AUDIO }, 1);
       }
     });
-    setContentView(web);
+    web.setBackgroundColor(0xFF060B1A);
+    // Android 15 draws apps edge to edge; a container takes the system-bar insets as padding
+    // (WebView itself ignores padding), so the header clears the status bar.
+    FrameLayout root = new FrameLayout(this);
+    root.setBackgroundColor(0xFF060B1A);
+    root.addView(web, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+    if (Build.VERSION.SDK_INT >= 30) {
+      root.setOnApplyWindowInsetsListener((v, insets) -> {
+        Insets b = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.ime());
+        v.setPadding(b.left, b.top, b.right, b.bottom);
+        return WindowInsets.CONSUMED;
+      });
+    }
+    setContentView(root);
     if (state != null) web.restoreState(state); else web.loadUrl(URL);
   }
   @Override protected void onSaveInstanceState(Bundle out) { super.onSaveInstanceState(out); web.saveState(out); }
