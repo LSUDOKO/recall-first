@@ -5,8 +5,18 @@
 <p align="center">
   <a href="https://recall-first.vercel.app"><b>Live site</b></a> ·
   <a href="https://recall-first.vercel.app/app"><b>Open the app</b></a> ·
-  <a href="https://github.com/LSUDOKO/recall-first/raw/main/dist/recall-first.apk"><b>Android APK</b></a> ·
+  <a href="https://github.com/LSUDOKO/recall-first/releases/latest/download/recall-first.apk"><b>Android APK</b></a> ·
   <a href="devpost/scope.md">Scope</a> · <a href="devpost/prd.md">PRD</a> · <a href="devpost/spec.md">Spec</a>
+ ·
+  <a href="https://github.com/LSUDOKO/recall-first/releases/latest/download/recall-first-film.mp4">Demo video</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/LSUDOKO/recall-first/releases/latest"><img src="https://img.shields.io/github/v/release/LSUDOKO/recall-first?label=release&color=1F6BFF" alt="Latest release"></a>
+  <a href="https://github.com/LSUDOKO/recall-first/pkgs/npm/recall-first"><img src="https://img.shields.io/badge/package-%40lsudoko%2Frecall--first-1F6BFF" alt="npm package on GitHub Packages"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/LSUDOKO/recall-first?color=FFB547" alt="MIT licence"></a>
+  <a href="https://recall-first.vercel.app"><img src="https://img.shields.io/badge/live-recall--first.vercel.app-3DBD8C" alt="Live site"></a>
+  <a href="#built-for-build-with-ai-basics"><img src="https://img.shields.io/badge/built%20with-Devpost%20Learn%20skills-003E54" alt="Built with the Devpost Learn skill pack"></a>
 </p>
 
 ## About
@@ -214,7 +224,7 @@ the app pairs the score with per-level feedback and a concrete next step rather 
 ## Run it
 
 **Try it now:** [recall-first.vercel.app/app](https://recall-first.vercel.app/app). Press *Try sample notes* if you
-don't have notes handy. On Android, install the [APK](https://github.com/LSUDOKO/recall-first/raw/main/dist/recall-first.apk)
+don't have notes handy. On Android, install the [APK](https://github.com/LSUDOKO/recall-first/releases/latest/download/recall-first.apk)
 and allow the install when asked.
 
 **Run it locally** (Node.js 22 or newer, and a free Groq key or an Anthropic key):
@@ -225,6 +235,15 @@ cd recall-first
 npm install
 cp .env.example .env        # paste your key after GROQ_API_KEY= (or ANTHROPIC_API_KEY=)
 npm start                   # http://localhost:3000 (landing) and /app (the quiz)
+```
+
+**Or install the package** from [GitHub Packages](https://github.com/LSUDOKO/recall-first/pkgs/npm/recall-first).
+GitHub's npm registry needs a GitHub token with `read:packages`, even for public packages:
+
+```bash
+echo "@lsudoko:registry=https://npm.pkg.github.com" >> ~/.npmrc
+echo "//npm.pkg.github.com/:_authToken=$(gh auth token)" >> ~/.npmrc
+GROQ_API_KEY=your-key npx @lsudoko/recall-first     # http://localhost:3000
 ```
 
 | Command | What it does |
@@ -290,24 +309,79 @@ flowchart TB
 
 ## Built for Build With AI: Basics
 
-This project was built for the Devpost hackathon
+This project was built for the Devpost learning hackathon
 [Build With AI: Basics](https://devpost.com), using the
-[Devpost Learn skill pack](https://github.com/challengepost/learn-ai-basics).
+[Devpost Learn skill pack](https://github.com/challengepost/learn-ai-basics). The main requirement is to design
+and build with the skill pack, using flipped interaction and planning documents. Everything below can be
+checked in this repository.
+
+<p align="center">
+  <img src="https://recall-first.vercel.app/media/devpost-planning.webp" alt="The repository and the four planning documents: scope, PRD, technical spec, build checklist" width="100%">
+</p>
+
+### How the skill pack was used
+
+```mermaid
+flowchart LR
+  A[1-start<br/>flipped interview,<br/>learner profile] --> B[2-scope<br/>scope.md]
+  B --> C[3-prd<br/>prd.md]
+  C --> D[4-spec<br/>spec.md]
+  D --> E[5-build<br/>checklist.md,<br/>one slice per commit]
+  E --> F[6-ship<br/>deploy, app map,<br/>wrap-up]
+```
+
+| Skill | What it did | Proof in this repo |
+|---|---|---|
+| `1-start` | Introduced flipped interaction: the AI interviews the learner, the learner brings the idea and makes the decisions. Wrote the learner profile every later skill reads. | Skill at [`.claude/skills/1-start`](.claude/skills/1-start). The profile is kept out of git on purpose, as the skill requires: see the `/devpost/learner-profile.md` rule in [`.gitignore`](.gitignore). |
+| `2-scope` | Turned the idea into one kernel and one core loop, with what is in and out of the proof of concept. | [`devpost/scope.md`](devpost/scope.md), `status: approved` |
+| `3-prd` | Product requirements: the user journey, every screen, edge cases, look and feel, each traced back to the scope. | [`devpost/prd.md`](devpost/prd.md), `status: approved` |
+| `4-spec` | Technical spec in plain language: server, API routes, AI calls with JSON schemas, file structure. | [`devpost/spec.md`](devpost/spec.md), `status: approved` |
+| `5-build` | Split the build into small slices. Each slice has a "why now", PRD and spec references, a mechanical verify step and a commit message, and was ticked only after it passed. | [`devpost/checklist.md`](devpost/checklist.md), `status: approved`, slices 1–8 ticked |
+| `6-ship` | Deployment, a code tour that maps the code back to the plan, and the wrap-up record. | [`devpost/app-map.html`](devpost/app-map.html), live at [recall-first.vercel.app](https://recall-first.vercel.app) |
+
+### The planning documents
+
+| Scope | Build checklist |
+|---|---|
+| <img src="https://recall-first.vercel.app/media/devpost-scope.webp" alt="scope.md on GitHub, status approved" width="100%"> | <img src="https://recall-first.vercel.app/media/devpost-checklist.webp" alt="checklist.md on GitHub, slices ticked" width="100%"> |
+| **Product requirements (PRD)** | **Technical spec** |
+| <img src="https://recall-first.vercel.app/media/devpost-prd.webp" alt="prd.md on GitHub, status approved" width="100%"> | <img src="https://recall-first.vercel.app/media/devpost-spec.webp" alt="spec.md on GitHub, status approved" width="100%"> |
+
+### The plan, slice by slice, in the commit history
+
+The proof of concept was built exactly in the checklist's order, one commit per slice:
+
+| Checklist slice | Commit |
+|---|---|
+| Empty repository with a licence | `04451e5` Initial commit |
+| 1. Paste notes; the page says when there is enough to quiz on | `960a7b1` Add Start screen with note intake and server |
+| 2. Quiz me turns your notes into five real questions | `04b0c9b` Generate five questions from notes with structured output |
+| 3–4. Answer from memory, rate confidence, graded fairly | `3edc47c` Add answer, confidence picker, I don't know flow and grading |
+| 5. Results show where confidence and knowledge disagree | `2719b18` Add results with calibration scale and study-first list |
+| 6. Errors, edge cases, README and polish | `be45e0c` Handle errors and edge cases, add README |
+| Ship: code tour and wrap-up | `5753229` Add app map and build wrap-up records |
+| 7. Expansion features | `e07a272` Add hints, calibration scoring, spot-the-error, fix round and exports |
+| 8. Deployed on Vercel | `130b817` Deploy to Vercel |
+
+### Changes of plan are written down, not hidden
+
+Every change after approval is recorded under **Revisions** in [`devpost/checklist.md`](devpost/checklist.md),
+with the reason and the documents it touched. Examples: the look changed twice, slices 3 and 4 were merged,
+Groq was added as a provider, and voice and the AI tutor came after the proof of concept. Work beyond the
+original scope is kept as a separate *Expansion After the Proof of Concept* section in the PRD, so the approved
+plan stays readable.
+
+### Submission checklist
 
 | Requirement | Where |
 |---|---|
-| New project, started from an empty folder during the submission period | First commit is an empty repo with a licence; full history in this repository |
-| Built with the skills (`1-start` → `6-ship`) | Skills in [`.claude/skills/`](.claude/skills); their outputs in [`devpost/`](devpost) |
-| Planning docs in the repo | [`devpost/scope.md`](devpost/scope.md), [`devpost/prd.md`](devpost/prd.md), [`devpost/spec.md`](devpost/spec.md), all `status: approved` |
-| Build plan and revisions | [`devpost/checklist.md`](devpost/checklist.md): slices 1–6 are the proof of concept; later slices and every change of plan are recorded under Revisions |
-| Code tour | [`devpost/app-map.html`](devpost/app-map.html) |
+| New project, started from an empty folder during the submission period | First commit `04451e5` is an empty repo with a licence |
+| Built with the skills (`1-start` → `6-ship`) | [`.claude/skills/`](.claude/skills) and their outputs in [`devpost/`](devpost) |
+| Planning docs in the repo | Scope, PRD, spec and checklist, all `status: approved` |
+| Open source licence | [MIT](LICENSE) |
 | Public repository | You are here |
-| Demo video (1–3 minutes) | *Link added with the Devpost submission* |
-
-**Planned before it was built.** The proof of concept (one loop: paste notes → five questions → answer with
-confidence → graded feedback → felt vs knew) was scoped, specified and built first. The voice, AI tutor, sources,
-game layer and Android app came afterwards and are documented as an expansion in the PRD, so the original plan
-stays readable.
+| Demo video (1–3 minutes) | [recall-first-film.mp4](https://github.com/LSUDOKO/recall-first/releases/latest/download/recall-first-film.mp4) (2:54, in the latest release) |
+| Working app | [recall-first.vercel.app](https://recall-first.vercel.app) and the [Android APK](https://github.com/LSUDOKO/recall-first/releases/latest/download/recall-first.apk) |
 
 ## Project layout
 

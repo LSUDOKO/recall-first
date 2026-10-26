@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // Recall First — the local server.
 // Job 1: hand the browser the files in public/.
 // Job 2: answer the API requests in lib/routes.js, which talk to the AI through lib/ai.js.
@@ -46,8 +47,10 @@ http.createServer(async (req, res) => {
   const handler = m && handlers[m[1]];
   if (!handler) return serveStatic(req, res);
   try {
-    const body = req.method === "POST" ? await readJson(req) : {};
-    send(res, 200, await handler(body));
+    const body = req.method === "POST" ? await readJson(req, m[1] === "transcribe" ? 4_500_000 : 200_000) : {};
+    const out = await handler(body);
+    if (Buffer.isBuffer(out)) return send(res, 200, out, "audio/wav");
+    send(res, 200, out);
   } catch (err) {
     const { status, body } = errorResponse(err);
     send(res, status, body);

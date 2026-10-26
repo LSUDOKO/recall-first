@@ -1,9 +1,11 @@
 {
-  "name": "recall-first",
-  "version": "0.1.0",
+  "name": "@lsudoko/recall-first",
+  "version": "1.0.0",
   "description": "An app that shows you what you only think you know: paste notes, answer from memory, rate your confidence, see where confidence and knowledge disagree.",
   "type": "module",
-  "private": true,
+  "bin": {
+    "recall-first": "server.js"
+  },
   "engines": {
     "node": ">=22"
   },
@@ -11,7 +13,37 @@
     "start": "node --env-file-if-exists=.env server.js",
     "test": "node --test test/*.test.js"
   },
+  "files": [
+    "server.js",
+    "lib/",
+    "public/",
+    "samples/",
+    ".env.example"
+  ],
+  "keywords": [
+    "study",
+    "learning",
+    "metacognition",
+    "calibration",
+    "quiz",
+    "ai",
+    "groq",
+    "flashcards",
+    "devpost"
+  ],
+  "homepage": "https://recall-first.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LSUDOKO/recall-first.git"
+  },
+  "bugs": {
+    "url": "https://github.com/LSUDOKO/recall-first/issues"
+  },
+  "author": "Arpit Singh",
   "license": "MIT",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0"
   }
