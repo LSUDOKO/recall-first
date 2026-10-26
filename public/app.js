@@ -79,6 +79,25 @@ export function summarize(answers, total = QUESTION_COUNT, concepts = []) {
   return { score, accuracy, confidence, studyFirst, headline, counts, cbm, fluencyTraps, blindSpots, overconfidence };
 }
 
+// XP for one answer = its certainty-based mark. Sure and right earns most, sure and wrong costs most,
+// "I don't know" costs nothing: honesty is never punished.
+export function xpFor(a) {
+  if (a.skipped) return 0;
+  const c = conf(a.confidence);
+  return a.verdict === "right" ? (a.hintsUsed ? c.win / 2 : c.win) : a.verdict === "partly" ? c.win / 2 : c.lose;
+}
+
+// Days in a row with at least one finished run, ending today or yesterday (local time).
+export function streakDays(times, now = Date.now()) {
+  const day = (t) => { const d = new Date(t); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
+  const days = new Set(times.map(day));
+  const d = new Date(now);
+  if (!days.has(day(d))) d.setDate(d.getDate() - 1);
+  let n = 0;
+  while (days.has(day(d))) { n += 1; d.setDate(d.getDate() - 1); }
+  return n;
+}
+
 // Wordle-style share text. No notes, no answers — just the shape of the run.
 export function shareCard(answers, summary) {
   const box = { right: "🟩", partly: "🟨", wrong: "🟥" };
@@ -100,6 +119,64 @@ if (typeof document !== "undefined") {
   const notes = $("notes"), notesB = $("notes-b"), meta = $("word-meta"), quizBtn = $("quiz-btn"), notice = $("start-notice");
   const progressLabel = $("progress-label"), progress = $("progress"), progressFill = $("progress-fill");
   const STORE = "recallfirst.runs";
+  const XP_KEY = "recallfirst.xp", SOUND_KEY = "recallfirst.sound";
+  const MASCOT = { idle: "img/mascot-idle.webp", thinking: "img/mascot-thinking.webp", success: "img/mascot-success.webp", blocked: "img/mascot-blocked.webp" };
+
+  // ----- Sound: tiny WebAudio blips, no files. Off switch in the header. -----
+  let soundOn = (() => { try { return localStorage.getItem(SOUND_KEY) !== "off"; } catch { return true; } })();
+  let actx = null;
+  function tone(freq, start, dur, type = "sine", gain = 0.08) {
+    if (!soundOn) return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + start;
+      o.type = type; o.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur + 0.02);
+    } catch { /* audio blocked: silent is fine */ }
+  }
+  const sfx = {
+    tap: () => tone(660, 0, 0.06, "triangle", 0.04),
+    right: () => { tone(784, 0, 0.12, "triangle"); tone(1175, 0.09, 0.22, "triangle"); },
+    partly: () => { tone(587, 0, 0.14, "triangle"); tone(659, 0.1, 0.18, "triangle"); },
+    wrong: () => { tone(330, 0, 0.16, "sawtooth", 0.04); tone(247, 0.12, 0.26, "sawtooth", 0.04); },
+    win: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.09, 0.28, "triangle")),
+  };
+  const soundBtn = $("sound-btn");
+  function paintSound() { soundBtn.setAttribute("aria-pressed", String(soundOn)); soundBtn.setAttribute("aria-label", soundOn ? "Sound on" : "Sound off"); soundBtn.style.opacity = soundOn ? "1" : ".5"; }
+  soundBtn.addEventListener("click", () => { soundOn = !soundOn; try { localStorage.setItem(SOUND_KEY, soundOn ? "on" : "off"); } catch {} paintSound(); sfx.tap(); });
+  paintSound();
+
+  // ----- HUD: lifetime XP and streak, both kept only in this browser -----
+  const loadXp = () => { try { return Number(localStorage.getItem(XP_KEY)) || 0; } catch { return 0; } };
+  function addXp(n) {
+    const total = Math.max(0, loadXp() + n);
+    try { localStorage.setItem(XP_KEY, String(total)); } catch {}
+    renderHud(true);
+    return total;
+  }
+  function renderHud(bump = false) {
+    $("xp-n").textContent = loadXp().toLocaleString();
+    $("streak-n").textContent = streakDays(loadRuns().map((r) => r.t));
+    if (bump) { const p = $("xp-pill"); p.classList.remove("bump"); void p.offsetWidth; p.classList.add("bump"); }
+  }
+  function confetti() {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const box = document.createElement("div"); box.className = "confetti"; box.setAttribute("aria-hidden", "true");
+    const colors = ["#5C9DFF", "#1F6BFF", "#BFDBFF", "#3DBD8C", "#FFB547", "#EEF4FF"];
+    for (let i = 0; i < 70; i++) {
+      const c = document.createElement("i");
+      c.style.left = `${Math.random() * 100}%`;
+      c.style.background = colors[i % colors.length];
+      c.style.setProperty("--dx", `${(Math.random() - 0.5) * 240}px`);
+      c.style.setProperty("--rot", `${(Math.random() - 0.5) * 1080}deg`);
+      c.style.animationDuration = `${1.6 + Math.random() * 1.6}s`;
+      c.style.animationDelay = `${Math.random() * 0.4}s`;
+      box.append(c);
+    }
+    document.body.append(box);
+    setTimeout(() => box.remove(), 3800);
+  }
 
   // The whole session lives here and nowhere else. A refresh wipes it.
   let session = freshSession();
@@ -113,14 +190,21 @@ if (typeof document !== "undefined") {
   const pct = (x) => Math.round(x * 100);
   const IDK = (q) => ({ userAnswer: "", confidence: "guessing", verdict: "wrong", feedback: "Honest. Here's the answer to study.", correctAnswer: q.answer, skipped: true });
 
+  let scrim = null;
   function show(name, { label, fill } = {}) {
+    const asSheet = name === "feedback";   // feedback slides up over the question instead of replacing it
     for (const [k, el] of Object.entries(screens)) {
-      el.hidden = k !== name;
-      if (k === name) { el.style.animation = "none"; void el.offsetWidth; el.style.animation = ""; }
+      el.hidden = asSheet ? !(k === "question" || k === "feedback") : k !== name;
+      if (k === name && !asSheet) { el.style.animation = "none"; void el.offsetWidth; el.style.animation = ""; }
     }
+    screens.feedback.classList.toggle("sheet", asSheet);
+    screens.question.classList.toggle("dim", asSheet);
+    screens.question.inert = asSheet;
+    if (asSheet && !scrim) { scrim = document.createElement("div"); scrim.className = "scrim"; document.body.append(scrim); }
+    if (!asSheet && scrim) { scrim.remove(); scrim = null; }
     progressLabel.hidden = progress.hidden = label == null;
     if (label != null) { progressLabel.textContent = label; progressFill.style.width = `${fill}%`; }
-    window.scrollTo({ top: 0, behavior: "instant" });
+    if (!asSheet) window.scrollTo({ top: 0, behavior: "instant" });
   }
   function quizLabel(offset = 0) {
     const inFix = Boolean(session.fix);
@@ -249,7 +333,7 @@ if (typeof document !== "undefined") {
     screens.question.innerHTML = `
       ${status.mock ? '<span class="practice-tag">Practice mode: canned questions, no AI</span>' : ""}
       ${session.fix ? '<p class="eyebrow-line">You were sure about this one. Second chance, new angle.</p>' : ""}
-      <h2 class="question">${esc(q.question)}</h2>
+      <div class="coach"><img src="${MASCOT.thinking}" alt="" width="92"><div class="bubble pop"><h2 class="question">${esc(q.question)}</h2></div></div>
       <label class="sr-only" for="answer">Your answer</label>
       <div class="answer-wrap">
         <textarea id="answer" rows="5" placeholder="Answer from memory. A sentence or two is enough." autocomplete="off"></textarea>
@@ -258,8 +342,9 @@ if (typeof document !== "undefined") {
       <div id="hints" class="hints" hidden></div>
       <span class="field-label" id="conf-label">How sure are you?</span>
       <div class="confidence" role="group" aria-labelledby="conf-label" id="confidence">
-        ${CONFIDENCE.map((c) => `<button type="button" data-level="${c.level}" aria-pressed="false">${c.label}</button>`).join("")}
+        ${CONFIDENCE.map((c, i) => `<button type="button" data-level="${c.level}" aria-pressed="false"><span class="sig" aria-hidden="true">${[0, 1, 2, 3].map((j) => `<i class="${j <= i ? "on" : ""}"></i>`).join("")}</span><span class="lv">${c.label}</span></button>`).join("")}
       </div>
+      <p class="stakes" id="stakes" aria-live="polite">Pick how sure you are. Being sure and wrong costs the most.</p>
       <div class="actions">
         <button class="btn primary" id="check-btn" type="button" disabled>Check answer</button>
         <button class="btn quiet" id="hint-btn" type="button">${q.hints && q.hints.length ? "Get a hint" : "I don't know"}</button>
@@ -274,6 +359,9 @@ if (typeof document !== "undefined") {
       confidence = btn.dataset.level;
       for (const b of picker.querySelectorAll("button")) b.setAttribute("aria-pressed", String(b === btn));
       checkBtn.disabled = false;
+      const c = conf(confidence);
+      $("stakes").innerHTML = `Right: <b>+${c.win} XP</b>. Wrong: <b>${c.lose < 0 ? "−" + Math.abs(c.lose) : "0"} XP</b>.`;
+      sfx.tap();
     });
     checkBtn.addEventListener("click", () => submitAnswer(answer.value, confidence, hintsUsed));
     hintBtn.addEventListener("click", () => {
@@ -350,15 +438,28 @@ if (typeof document !== "undefined") {
     const a = list[session.index];
     const last = session.index === total - 1;
     const nextLabel = last ? (session.fix ? "Back to results" : session.guessFirst && session.round === 1 ? "Read your notes" : session.summary ? "One more thing" : "See results") : "Next question";
+    const xp = xpFor(a);
+    const sure = !a.skipped && conf(a.confidence).value >= 0.75;
+    const pose = a.verdict === "right" ? MASCOT.success : a.verdict === "wrong" && sure ? MASCOT.blocked : a.skipped ? MASCOT.idle : MASCOT.thinking;
+    const cheer = a.verdict === "right" ? (sure ? "Earned it." : "Right, and you doubted it.") : a.verdict === "partly" ? "Close." : a.skipped ? "Honest." : sure ? "Sure, and wrong." : "Not this time.";
     screens.feedback.innerHTML = `
-      <p class="verdict ${a.verdict}">${VERDICT[a.verdict]}${a.hintsUsed && a.verdict === "right" ? '<span class="verdict-note">with hints, counts half</span>' : ""}</p>
-      <p class="feedback-text">${esc(a.feedback)}</p>
-      <div class="correct">
-        <span class="correct-label">Correct answer, from your notes</span>
-        <p>${esc(a.correctAnswer)}</p>
-      </div>
-      <p class="meta">${a.skipped ? "You said you didn't know." : `You said you were ${conf(a.confidence).label.toLowerCase()}.`}${!a.skipped ? ` You wrote: <q>${esc(a.userAnswer)}</q>` : ""}${a.ms != null && !a.skipped ? ` Answered in ${Math.max(1, Math.round(a.ms / 1000))}s.` : ""}</p>
-      <div class="actions"><button class="btn primary" id="next-btn" type="button">${nextLabel}</button></div>`;
+      <div class="sheet-inner ${a.verdict}" role="dialog" aria-label="Result">
+        <div class="sheet-head">
+          <img src="${pose}" alt="" width="76">
+          <div><p class="verdict ${a.verdict}">${VERDICT[a.verdict]}</p><p class="meta">${cheer}${a.hintsUsed && a.verdict === "right" ? " With hints, counts half." : ""}</p></div>
+          <span class="xp-delta ${xp > 0 ? "up" : xp < 0 ? "down" : "zero"}">${xp > 0 ? "+" : xp < 0 ? "−" : ""}${Math.abs(xp)} XP</span>
+        </div>
+        <p class="feedback-text">${esc(a.feedback)}</p>
+        <div class="correct">
+          <span class="correct-label">Correct answer, from your notes</span>
+          <p>${esc(a.correctAnswer)}</p>
+        </div>
+        <p class="meta">${a.skipped ? "You said you didn't know." : `You said you were ${conf(a.confidence).label.toLowerCase()}.`}${!a.skipped ? ` You wrote: <q>${esc(a.userAnswer)}</q>` : ""}${a.ms != null && !a.skipped ? ` Answered in ${Math.max(1, Math.round(a.ms / 1000))}s.` : ""}</p>
+        <div class="actions"><button class="btn wide go-${a.verdict}" id="next-btn" type="button">${nextLabel}</button></div>
+      </div>`;
+    session.xp = (session.xp || 0) + xp;
+    addXp(xp);
+    (a.verdict === "right" ? sfx.right : a.verdict === "partly" ? sfx.partly : a.skipped ? sfx.tap : sfx.wrong)();
     show("feedback", quizLabel(1));
     $("next-btn").addEventListener("click", () => {
       if (!last) { session.index += 1; return renderQuestion(); }
@@ -445,9 +546,17 @@ if (typeof document !== "undefined") {
         </details>
       </li>`;
 
+    const good = !r.studyFirst.length && r.score >= 3;
     screens.results.innerHTML = `
-      <p class="score"><span class="score-num">${fmt(r.score)}</span><span class="score-of"> of ${QUESTION_COUNT}</span>${r1 ? `<span class="score-before">up from ${fmt(r1.score)} before reading</span>` : ""}</p>
+      <div class="results-top">
+        <img src="${r.studyFirst.length ? MASCOT.thinking : MASCOT.success}" alt="" width="110">
+        <p class="score"><span class="score-num">${fmt(r.score)}</span><span class="score-of"> of ${QUESTION_COUNT}</span>${r1 ? `<span class="score-before">up from ${fmt(r1.score)} before reading</span>` : ""}</p>
+      </div>
       <h2 class="headline results-headline">${esc(r.headline)}</h2>
+      <div class="xp-row">
+        <span class="pill xp"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg>${(session.xp || 0) >= 0 ? "+" : "−"}${Math.abs(session.xp || 0)} XP this run</span>
+        <span class="pill streak"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2c1 3.5-1.5 5-1.5 7.5 0 1.4 1 2.5 2.3 2.5 1.6 0 2.4-1.4 2-3.4C17.6 10.4 19 13 19 15.5 19 19.6 15.9 22 12 22s-7-2.4-7-6.5C5 10 10.5 7.5 12 2z"/></svg>${streakDays(loadRuns().map((x) => x.t))}-day streak</span>
+      </div>
 
       <div class="scale" role="img" aria-label="You felt ${pct(r.confidence)} percent sure on average and knew ${pct(r.accuracy)} percent.">
         <div class="track">
@@ -495,6 +604,8 @@ if (typeof document !== "undefined") {
 
       <div class="actions"><button class="btn primary" id="again-btn" type="button">Try again with new notes</button></div>`;
     show("results");
+    renderHud();
+    if (!session.celebrated) { session.celebrated = true; if (good) { confetti(); sfx.win(); } else sfx.partly(); }
 
     $("again-btn").addEventListener("click", () => {
       session = freshSession();
@@ -561,4 +672,5 @@ if (typeof document !== "undefined") {
   }).catch(() => updateIntake());
   updateIntake();
   renderTrend();
+  renderHud();
 }

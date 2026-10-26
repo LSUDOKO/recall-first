@@ -49,26 +49,17 @@ Movement is strictly forward: Start → Question → Feedback → Question … �
 No back button (looking back at a question after seeing its answer defeats the point).
 
 ## Look and Feel
-- **Mood:** calm, focused study partner. Spacious, quiet, confident. Not a test, not a game.
-- **The one loud thing — the highlighter.** Students mark what to study with a highlighter.
-  Recall First uses a single highlighter yellow for exactly one job: marking the gap between
-  what you *felt* you knew and what you *actually* knew — the "sure but wrong" items and the
-  gap on the calibration scale. Nothing else on screen is yellow.
-- **Palette:** cool chalk-white paper, deep navy ink for text, soft grey rules; highlighter
-  yellow as above; pine green for Right, ochre for Partly right, carmine for Wrong.
-- **Typography:** the IBM Plex family — Plex Serif for the wordmark, questions, headline and
-  big numbers (bookish, studious, slightly technical); Plex Sans for body, buttons and labels.
-  Large base size, left-aligned text, lines under 70 characters.
-- **Density and energy:** one thing per screen, generous whitespace, a single left-aligned
-  column, thin rules instead of boxes wherever possible, no drop shadows, no gradients.
-  Motion only in response to an action (a screen change, a verdict appearing).
-- **Copy tone:** short, warm, direct. Second person, sentence case. "Study these first," not
-  "Areas for improvement." No emoji, no all-caps labels.
-- **Brand mark:** the wordmark "Recall First" with a small mark — a filled dot sitting inside a
-  thin ring, off-centre. The dot is what you know; the ring is what you think you know; the
-  space between is the gap the app finds. Appears top-left on every screen.
-- **Avoid:** cream-and-terracotta "AI app" styling, purple gradients, chat bubbles, robot
-  icons, rounded-card grids, multiple-choice-looking tiles.
+- **Mood:** a game-like study partner (Duolingo-style pacing) that stays honest about what it measures.
+- **Visual system:** shared with the learner's earlier project Tally: cobalt night background, smoked-glass
+  panels, one brand blue (#1F6BFF) for actions, Inter Tight with light weights for large type.
+- **Semantics:** green = right, amber = partly right and the felt/knew gap, red = wrong. Amber is the
+  one loud colour on Results, so the gap stays the hero.
+- **Mascot:** the Tally character as a study coach: thinking pose asks the question in a speech bubble,
+  thumbs-up for right, raised palm for sure-but-wrong, idle on Start and in the header.
+- **Game layer:** calibration XP per answer (certainty-based marking), a daily streak, chunky pressable
+  buttons, a feedback sheet that slides up over the question, confetti on a well-calibrated run, and
+  short synthesized sounds with a mute switch. "I don't know" never triggers a failure reaction.
+- **Avoid:** generic AI-app purple gradients, chat bubbles for the AI, multiple-choice-looking tiles.
 
 ## Features and Behavior
 

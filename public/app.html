@@ -8,18 +8,22 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#060B1A">
+  <link rel="preload" as="image" href="img/mascot-thinking.webp">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="top">
     <a class="brand" href="/" aria-label="Recall First, about the app">
-      <svg class="mark" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-        <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.6"/>
-        <circle cx="9.2" cy="14.6" r="4" fill="currentColor"/>
-      </svg>
+      <img class="avatar" src="img/mascot-avatar.webp" alt="" width="34" height="34">
       <span>Recall First</span>
     </a>
+    <div class="hud">
+      <span class="pill streak" id="streak-pill" title="Days in a row you've studied"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2c1 3.5-1.5 5-1.5 7.5 0 1.4 1 2.5 2.3 2.5 1.6 0 2.4-1.4 2-3.4C17.6 10.4 19 13 19 15.5 19 19.6 15.9 22 12 22s-7-2.4-7-6.5C5 10 10.5 7.5 12 2z"/></svg><span id="streak-n">0</span></span>
+      <span class="pill xp" id="xp-pill" title="Calibration XP: sure and right earns most, sure and wrong costs most"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg><span id="xp-n">0</span><span class="lbl">XP</span></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Sound on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path class="wave" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg></button>
+    </div>
     <span class="progress-label" id="progress-label" hidden></span>
   </header>
   <div class="progress" id="progress" hidden><div class="progress-fill" id="progress-fill"></div></div>
@@ -27,8 +31,11 @@
   <main id="app">
 
     <section id="screen-start" class="screen">
+      <div class="coach big">
+        <img src="img/mascot-idle.webp" alt="" width="132">
+        <p class="bubble pop" id="start-bubble">Paste your notes. I'll ask five questions, you tell me how sure you are. Then we find out if you were right to be.</p>
+      </div>
       <h1 class="headline">Find out what you only think you know.</h1>
-      <p class="lede">Paste your notes. Answer five questions from memory, saying how sure you are before each result. Then see exactly where you were sure, and wrong.</p>
 
       <form id="start-form" novalidate>
         <label class="sr-only" for="notes">Your notes</label>

@@ -87,27 +87,19 @@ labelled in the UI) so the screens can be exercised without spending API calls. 
 in the demo.
 
 ## Look and Feel
-Carried from `prd.md > Look and Feel`; implemented as CSS custom properties in
-`public/styles.css`.
+Carried from `prd.md > Look and Feel`; implemented as CSS custom properties at the top of
+`public/styles.css` (landing reuses them in `public/landing.css`).
 
-- Palette: `--paper: #F5F4F0` background, `--ink: #17213A` text, `--muted: #5C6273`,
-  `--rule: #D9DAD5` lines, `--card: #FFFFFF`; `--mark: #F5E663` highlighter (gap on the
-  calibration scale, "sure but wrong" items, Certain step when selected); `--right: #1F6F5B`,
-  `--partly: #9A6B00`, `--wrong: #B3261E`.
-- Type: IBM Plex Serif for wordmark, questions, headline and big numbers; IBM Plex Sans for
-  everything else; both from Google Fonts with Georgia / system-ui fallbacks. Base 18 px,
-  questions ~30 px, score number ~88 px. Serif body lines get a little extra line-height.
-- Layout: one left-aligned column, max-width 640 px, 24 px gutters on mobile. Thin 1 px
-  rules separate regions; cards only where a region needs to read as one object (the
-  "correct answer" block, each Study-these-first item). No shadows, no gradients.
-- Motion: screen changes fade/slide 180 ms; the verdict word appears with a short ease-out;
-  everything respects `prefers-reduced-motion`.
-- Brand mark: inline SVG — thin ring with a filled dot sitting low-left inside it.
-- Controls: primary button = ink fill / paper text; secondary = underlined text button;
-  confidence picker = four equal segments in a single bordered strip, the chosen one fills
-  with ink (Certain fills with highlighter and ink text). Visible focus rings everywhere.
-- Calibration scale (Results): a 0–100 % track; two markers labelled "felt" and "knew"; the
-  span between them filled with `--mark`. This is the memorable element; the rest stays quiet.
+- Tokens: `--night #060B1A`, `--ink #03060F`, glass `rgba(4,10,28,.56)` with a `rgba(194,220,255,.22)`
+  hairline, `--brand #1F6BFF`, `--brand-bright #5C9DFF`, `--right #3DBD8C`, `--partly`/`--mark #FFB547`,
+  `--wrong #FF6B6B`. Values ported from Tally's `Theme.kt` (Compose ARGB converted to CSS RGBA).
+- Type: Inter Tight 300–800 and JetBrains Mono from Google Fonts.
+- Mascot: `public/img/mascot-*.webp`, resized from Tally's drawables (~20 KB each).
+- Interaction: `.btn` bottom-shadow press, confidence tiles with signal bars and a live stakes line
+  (`+4 / −8 XP`), feedback rendered into `#screen-feedback.sheet` over the inert question, XP and
+  streak in the header from `localStorage` (`recallfirst.xp`, runs), WebAudio blips (`recallfirst.sound`),
+  CSS confetti. Pure helpers `xpFor` and `streakDays` live in `public/app.js` beside `summarize`.
+- APK: dark status/nav bars, cobalt adaptive icon background (`android/res`).
 
 ## Components
 
