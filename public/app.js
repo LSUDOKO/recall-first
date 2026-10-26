@@ -414,6 +414,14 @@ if (typeof document !== "undefined") {
     const s = sources.find((x) => x.id === li.dataset.id); s.on = e.target.checked; renderSources(); updateIntake();
   });
 
+  $("sample-btn").addEventListener("click", async () => {
+    try {
+      const text = await (await fetch("sample-notes.txt")).text();
+      sources.push({ id: "sample", name: "Sample: memory and learning.txt", kind: "text", text, pages: null, words: countWords(text), on: true });
+      renderSources(); updateIntake(); sfx.tap(); $("sample-btn").hidden = true;
+    } catch { setNotice("Couldn't load the sample notes.", "error"); }
+  });
+
   // Every switched-on source plus pasted text, separated by a line of dashes so questions spread across them.
   const combinedNotes = () => {
     const parts = sources.filter((s) => s.on && s.text).map((s) => s.text);
@@ -813,7 +821,7 @@ if (typeof document !== "undefined") {
 
     $("again-btn").addEventListener("click", () => {
       session = freshSession();
-      notes.value = ""; notesB.value = ""; $("guess-first").checked = false; sources.length = 0; renderSources(); setNotice(""); updateIntake(); renderTrend();
+      notes.value = ""; notesB.value = ""; $("guess-first").checked = false; sources.length = 0; renderSources(); $("sample-btn").hidden = false; setNotice(""); updateIntake(); renderTrend();
       show("start"); notes.focus();
     });
     const fixBtn = $("fix-btn");

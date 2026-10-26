@@ -420,3 +420,4 @@ q { quotes: "“" "”"; font-style: italic; }
 .ask-q { font-weight: 700; color: var(--brand-core); }
 .ask-item blockquote { margin: 8px 0 0; padding: 8px 12px; border-left: 3px solid var(--mark); color: var(--muted); font-style: italic; }
 @media (max-width: 520px) { .rel-bar { width: 30px; } .coach-card img { width: 52px; } }
+.sample-btn { margin-top: 12px; }
