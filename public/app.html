@@ -22,7 +22,8 @@
     <div class="hud">
       <span class="pill streak" id="streak-pill" title="Days in a row you've studied"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2c1 3.5-1.5 5-1.5 7.5 0 1.4 1 2.5 2.3 2.5 1.6 0 2.4-1.4 2-3.4C17.6 10.4 19 13 19 15.5 19 19.6 15.9 22 12 22s-7-2.4-7-6.5C5 10 10.5 7.5 12 2z"/></svg><span id="streak-n">0</span></span>
       <span class="pill xp" id="xp-pill" title="Calibration XP: sure and right earns most, sure and wrong costs most"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg><span id="xp-n">0</span><span class="lbl">XP</span></span>
-      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Sound on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path class="wave" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg></button>
+      <button class="icon-btn" id="read-btn" type="button" aria-pressed="true" aria-label="Read aloud on" title="Read questions aloud"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v1H7a3 3 0 0 0-3 3v1a3 3 0 0 0 3 3h1l3 4h1V3zm4.5 4.5a6 6 0 0 1 0 9l-1.4-1.4a4 4 0 0 0 0-6.2zm2.8-2.8a10 10 0 0 1 0 14.6l-1.4-1.4a8 8 0 0 0 0-11.8z"/></svg></button>
+      <button class="icon-btn" id="sound-btn" title="Sound effects" type="button" aria-pressed="true" aria-label="Sound on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path class="wave" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg></button>
     </div>
     <span class="progress-label" id="progress-label" hidden></span>
   </header>
@@ -54,6 +55,11 @@
         </div>
         <div class="options">
           <button type="button" class="btn quiet" id="add-set-btn">Mix in a second set of notes</button>
+          <fieldset class="level"><legend>Difficulty</legend>
+            <label><input type="radio" name="difficulty" value="easy"><span>Easy</span></label>
+            <label><input type="radio" name="difficulty" value="exam" checked><span>Exam</span></label>
+            <label><input type="radio" name="difficulty" value="hard"><span>Hard</span></label>
+          </fieldset>
           <label class="check"><input type="checkbox" id="guess-first"> <span>Guess first: I haven't read these yet. Quiz me, then let me read, then quiz me again.</span></label>
         </div>
         <div class="intake-row">

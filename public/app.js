@@ -115,6 +115,7 @@ export function shareCard(answers, summary) {
 // Everything below touches the DOM; skip it when imported by a test.
 if (typeof document !== "undefined") {
   const { extract, ACCEPT } = await import("./sources.js");
+  const { calibration } = await import("./calibration.js");
   const $ = (id) => document.getElementById(id);
   const screens = Object.fromEntries(["start", "read", "question", "feedback", "spot", "results"].map((k) => [k, $(`screen-${k}`)]));
   const notes = $("notes"), notesB = $("notes-b"), meta = $("word-meta"), quizBtn = $("quiz-btn"), notice = $("start-notice");
@@ -147,6 +148,114 @@ if (typeof document !== "undefined") {
   function paintSound() { soundBtn.setAttribute("aria-pressed", String(soundOn)); soundBtn.setAttribute("aria-label", soundOn ? "Sound on" : "Sound off"); soundBtn.style.opacity = soundOn ? "1" : ".5"; }
   soundBtn.addEventListener("click", () => { soundOn = !soundOn; try { localStorage.setItem(SOUND_KEY, soundOn ? "on" : "off"); } catch {} paintSound(); sfx.tap(); });
   paintSound();
+
+  // ----- Voice out: Groq voice when available, the browser's voice otherwise -----
+  const READ_KEY = "recallfirst.readaloud";
+  let readAloud = (() => { try { return localStorage.getItem(READ_KEY) !== "off"; } catch { return true; } })();
+  const ttsCache = new Map();
+  let currentAudio = null, speakToken = 0;
+  function stopSpeech() {
+    speakToken += 1;
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+    try { window.speechSynthesis && speechSynthesis.cancel(); } catch {}
+    document.querySelectorAll(".speaking").forEach((el) => el.classList.remove("speaking"));
+  }
+  function browserSay(text, done) {
+    if (!("speechSynthesis" in window)) return done();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1.02; u.pitch = 1.05; u.lang = "en-US";
+    const v = speechSynthesis.getVoices().find((x) => /en[-_](US|GB)/i.test(x.lang) && /natural|google|samantha|female|aria|jenny/i.test(x.name)) || speechSynthesis.getVoices().find((x) => /^en/i.test(x.lang));
+    if (v) u.voice = v;
+    u.onend = u.onerror = done;
+    speechSynthesis.speak(u);
+  }
+  // Speak text; resolves when finished (or immediately when read-aloud is off or cancelled).
+  function say(text, { force = false, el = null } = {}) {
+    return new Promise(async (resolve) => {
+      if ((!readAloud && !force) || !text) return resolve(false);
+      stopSpeech();
+      const token = speakToken;
+      if (el) el.classList.add("speaking");
+      const done = () => { if (el) el.classList.remove("speaking"); resolve(token === speakToken); };
+      const groq = status.voice && status.voice.tts === "groq" && text.length <= 200;
+      if (groq) {
+        try {
+          let url = ttsCache.get(text);
+          if (!url) {
+            const res = await fetch("/api/speak", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) });
+            if (!res.ok) { status.voice.tts = "browser"; throw new Error("tts"); }
+            url = URL.createObjectURL(await res.blob());
+            ttsCache.set(text, url);
+          }
+          if (token !== speakToken) return resolve(false);
+          currentAudio = new Audio(url);
+          currentAudio.onended = currentAudio.onerror = done;
+          await currentAudio.play();
+          return;
+        } catch { if (token !== speakToken) return resolve(false); }
+      }
+      browserSay(text, done);
+    });
+  }
+  const readBtn = $("read-btn");
+  function paintRead() { readBtn.setAttribute("aria-pressed", String(readAloud)); readBtn.setAttribute("aria-label", readAloud ? "Read aloud on" : "Read aloud off"); readBtn.classList.toggle("off", !readAloud); }
+  readBtn.addEventListener("click", () => { readAloud = !readAloud; try { localStorage.setItem(READ_KEY, readAloud ? "on" : "off"); } catch {} paintRead(); if (!readAloud) stopSpeech(); });
+  paintRead();
+
+  // ----- Voice in: record, then Whisper on the server; the browser's recogniser as fallback -----
+  // The transcript lands in the answer box for the learner to check; it is never submitted on its own.
+  function setupMic(btn, target, { onText } = {}) {
+    const canRecord = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder) && status.voice && status.voice.stt === "groq";
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!canRecord && !SR) { btn.hidden = true; return; }
+    const label = btn.querySelector(".mic-label"), meter = btn.querySelector(".mic-meter");
+    const put = (text) => { target.value = (target.value.trim() + " " + text).trim(); target.dispatchEvent(new Event("input")); onText && onText(text); };
+    let rec = null, stream = null, chunks = [], timer = null, raf = 0, actxMic = null, started = 0;
+    const idle = () => { btn.classList.remove("rec", "busy"); btn.setAttribute("aria-pressed", "false"); label.textContent = btn.dataset.idle; if (meter) meter.style.setProperty("--lvl", 0); };
+    btn.dataset.idle = label.textContent;
+    btn.addEventListener("click", async () => {
+      if (rec) { rec.stop(); return; }
+      stopSpeech();
+      if (!canRecord) {   // browser recogniser
+        rec = new SR(); rec.lang = "en-US"; rec.interimResults = false; rec.continuous = true;
+        btn.classList.add("rec"); btn.setAttribute("aria-pressed", "true"); label.textContent = "Listening… tap to stop";
+        rec.onresult = (e) => put(Array.from(e.results).slice(e.resultIndex).map((r) => r[0].transcript).join(" ").trim());
+        rec.onerror = () => { label.textContent = "Mic unavailable"; };
+        rec.onend = () => { rec = null; idle(); };
+        return rec.start();
+      }
+      try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
+      catch { label.textContent = "Allow the microphone to answer by voice"; return; }
+      const mime = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"].find((m) => MediaRecorder.isTypeSupported(m)) || "";
+      rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      chunks = []; started = Date.now();
+      rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+      rec.onstop = async () => {
+        clearTimeout(timer); cancelAnimationFrame(raf); stream.getTracks().forEach((t) => t.stop()); try { actxMic && actxMic.close(); } catch {}
+        const took = Date.now() - started; rec = null;
+        if (took < 700) { idle(); label.textContent = "Hold on a little longer, then tap stop"; return; }
+        btn.classList.remove("rec"); btn.classList.add("busy"); label.textContent = "Transcribing…";
+        try {
+          const blob = new Blob(chunks, { type: mime || "audio/webm" });
+          const b64 = await new Promise((ok) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(",")[1]); fr.readAsDataURL(blob); });
+          const out = await api("/api/transcribe", { audio: b64, mime: blob.type });
+          idle();
+          if (out.heard) { put(out.text); sfx.tap(); } else label.textContent = "Didn't catch that. Try again?";
+        } catch (err) { idle(); label.textContent = err.message && err.code ? err.message : "Couldn't transcribe. Try again?"; }
+      };
+      rec.start(250);
+      btn.classList.add("rec"); btn.setAttribute("aria-pressed", "true"); label.textContent = "Listening… tap to stop";
+      timer = setTimeout(() => rec && rec.state === "recording" && rec.stop(), 60_000);
+      try {   // live level meter
+        actxMic = new (window.AudioContext || window.webkitAudioContext)();
+        const an = actxMic.createAnalyser(); an.fftSize = 256; actxMic.createMediaStreamSource(stream).connect(an);
+        const data = new Uint8Array(an.frequencyBinCount);
+        const tick = () => { an.getByteFrequencyData(data); const lvl = Math.min(1, data.reduce((a, b) => a + b, 0) / data.length / 90); meter && meter.style.setProperty("--lvl", lvl.toFixed(2)); raf = requestAnimationFrame(tick); };
+        tick();
+      } catch {}
+    });
+  }
+  const micButton = (id, text) => `<button type="button" class="mic" id="${id}" aria-pressed="false"><span class="mic-dot"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2z"/></svg></span><span class="mic-meter" aria-hidden="true"></span><span class="mic-label">${text}</span></button>`;
 
   // ----- HUD: lifetime XP and streak, both kept only in this browser -----
   const loadXp = () => { try { return Number(localStorage.getItem(XP_KEY)) || 0; } catch { return 0; } };
@@ -193,6 +302,7 @@ if (typeof document !== "undefined") {
 
   let scrim = null;
   function show(name, { label, fill } = {}) {
+    stopSpeech();
     const asSheet = name === "feedback";   // feedback slides up over the question instead of replacing it
     for (const [k, el] of Object.entries(screens)) {
       el.hidden = asSheet ? !(k === "question" || k === "feedback") : k !== name;
@@ -336,6 +446,7 @@ if (typeof document !== "undefined") {
     session = freshSession();
     session.notes = trimWords(combinedNotes());
     session.guessFirst = $("guess-first").checked;
+    session.difficulty = document.querySelector('input[name="difficulty"]:checked')?.value || "exam";
     await startRound();
   });
 
@@ -343,7 +454,7 @@ if (typeof document !== "undefined") {
     quizBtn.classList.add("busy"); quizBtn.disabled = true; notes.disabled = true;
     meta.textContent = "Writing your questions…";
     try {
-      const data = await api("/api/questions", { notes: session.notes, avoid });
+      const data = await api("/api/questions", { notes: session.notes, avoid, difficulty: session.difficulty || "exam" });
       if (!data.ok) { setNotice(data.reason, "error"); return; }
       session.questions = data.questions;
       session.concepts = data.concepts || [];
@@ -382,15 +493,14 @@ if (typeof document !== "undefined") {
 
   function renderQuestion() {
     const q = currentQ();
-    const canVoice = "SpeechRecognition" in window || "webkitSpeechRecognition" in window;
     screens.question.innerHTML = `
       ${status.mock ? '<span class="practice-tag">Practice mode: canned questions, no AI</span>' : ""}
       ${session.fix ? '<p class="eyebrow-line">You were sure about this one. Second chance, new angle.</p>' : ""}
-      <div class="coach"><img src="${MASCOT.thinking}" alt="" width="92"><div class="bubble pop"><h2 class="question">${esc(q.question)}</h2></div></div>
+      <div class="coach"><img src="${MASCOT.thinking}" alt="" width="92"><div class="bubble pop" id="q-bubble"><h2 class="question">${esc(q.question)}</h2><button type="button" class="replay" id="replay-btn" aria-label="Read the question aloud"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg></button></div></div>
       <label class="sr-only" for="answer">Your answer</label>
       <div class="answer-wrap">
         <textarea id="answer" rows="5" placeholder="Answer from memory. A sentence or two is enough." autocomplete="off"></textarea>
-        ${canVoice ? '<button type="button" class="btn quiet small voice" id="voice-btn" aria-pressed="false">Speak your answer</button>' : ""}
+        ${micButton("mic-btn", "Answer by voice")}
       </div>
       <div id="hints" class="hints" hidden></div>
       <span class="field-label" id="conf-label">How sure are you?</span>
@@ -404,6 +514,13 @@ if (typeof document !== "undefined") {
       </div>`;
     show("question", quizLabel());
     session.startedAt = Date.now();
+    const qIndex = session.index, qFix = session.fix;
+    const readQ = (force) => say(q.question, { force, el: $("q-bubble") }).then((finished) => {
+      // the fluency-trap clock starts when the question has been read, not while it is being read
+      if (finished && session.index === qIndex && session.fix === qFix) session.startedAt = Date.now();
+    });
+    $("replay-btn").addEventListener("click", () => readQ(true));
+    readQ(false);
     let confidence = null, hintsUsed = 0;
     const answer = $("answer"), checkBtn = $("check-btn"), picker = $("confidence"), hintBtn = $("hint-btn"), hintsBox = $("hints");
     picker.addEventListener("click", (e) => {
@@ -430,27 +547,8 @@ if (typeof document !== "undefined") {
         recordAnswer({ ...IDK(q), hintsUsed });
       }
     });
-    if (canVoice) setupVoice($("voice-btn"), answer);
+    setupMic($("mic-btn"), answer);
     answer.focus();
-  }
-
-  function setupVoice(btn, answer) {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let rec = null;
-    btn.addEventListener("click", () => {
-      if (rec) { rec.stop(); return; }
-      rec = new SR();
-      rec.lang = document.documentElement.lang || "en";
-      rec.interimResults = false; rec.continuous = true;
-      btn.setAttribute("aria-pressed", "true"); btn.textContent = "Listening… tap to stop";
-      rec.onresult = (e) => {
-        const text = Array.from(e.results).slice(e.resultIndex).map((r) => r[0].transcript).join(" ").trim();
-        answer.value = (answer.value.trim() + " " + text).trim();
-      };
-      rec.onerror = () => { btn.textContent = "Mic unavailable"; };
-      rec.onend = () => { rec = null; btn.setAttribute("aria-pressed", "false"); if (btn.textContent.startsWith("Listening")) btn.textContent = "Speak your answer"; };
-      rec.start();
-    });
   }
 
   async function submitAnswer(userAnswer, confidence, hintsUsed) {
@@ -508,11 +606,25 @@ if (typeof document !== "undefined") {
           <p>${esc(a.correctAnswer)}</p>
         </div>
         <p class="meta">${a.skipped ? "You said you didn't know." : `You said you were ${conf(a.confidence).label.toLowerCase()}.`}${!a.skipped ? ` You wrote: <q>${esc(a.userAnswer)}</q>` : ""}${a.ms != null && !a.skipped ? ` Answered in ${Math.max(1, Math.round(a.ms / 1000))}s.` : ""}</p>
+        ${a.verdict !== "right" || a.hintsUsed ? `<div class="why" id="why-box"><button type="button" class="btn small" id="why-btn">Why? Explain it</button></div>` : ""}
         <div class="actions"><button class="btn wide go-${a.verdict}" id="next-btn" type="button">${nextLabel}</button></div>
       </div>`;
     session.xp = (session.xp || 0) + xp;
     addXp(xp);
     (a.verdict === "right" ? sfx.right : a.verdict === "partly" ? sfx.partly : a.skipped ? sfx.tap : sfx.wrong)();
+    setTimeout(() => { if (!screens.feedback.hidden) say(`${VERDICT[a.verdict]}. ${a.feedback}`); }, 350);
+    const whyBtn = $("why-btn");
+    if (whyBtn) whyBtn.addEventListener("click", async () => {
+      whyBtn.classList.add("busy"); whyBtn.disabled = true;
+      try {
+        const ex = await api("/api/explain", { question: a.question, correctAnswer: a.correctAnswer, userAnswer: a.userAnswer || "", notes: session.notes });
+        $("why-box").innerHTML = `<p class="why-text">${esc(ex.explanation)}</p><p class="why-hook"><span>Remember it</span>${esc(ex.hook)}</p>`;
+        say(`${ex.explanation} ${ex.hook}`, { force: true });
+      } catch (err) {
+        whyBtn.classList.remove("busy"); whyBtn.disabled = false;
+        $("why-box").insertAdjacentHTML("beforeend", `<p class="meta">${esc(friendly(err))}</p>`);
+      }
+    });
     show("feedback", quizLabel(1));
     $("next-btn").addEventListener("click", () => {
       if (!last) { session.index += 1; return renderQuestion(); }
@@ -621,6 +733,21 @@ if (typeof document !== "undefined") {
       </div>
       <p class="meta scale-note">Felt is your average confidence. Knew is your score. The highlighted part is the gap.${prev ? ` Last run the gap was ${Math.abs(prev.felt - prev.knew)} points; now it's ${Math.abs(pct(r.confidence) - pct(r.accuracy))}.` : ""}</p>
 
+      ${(() => { const c = calibration(session.answers); return `
+      <div class="calib">
+        <div class="calib-head"><span class="stat-num">${c.score}</span><span class="stat-label">calibration score <span class="meta">(Brier ${c.brier.toFixed(2)}; 100 is perfect)</span></span></div>
+        <div class="rel" role="img" aria-label="How often each confidence level was right">${c.byLevel.map((l) => `
+          <div class="rel-col ${l.n ? "" : "empty"}"><div class="rel-bar"><i style="height:${l.n ? Math.round(l.hit * 100) : 0}%"></i><b style="bottom:${Math.round(l.claimed * 100)}%"></b></div><span>${l.label}</span><em>${l.n ? `${Math.round(l.hit * 100)}% of ${l.n}` : "unused"}</em></div>`).join("")}
+        </div>
+        <p class="meta">Bars show how often each level was right; the tick is what that level claims.</p>
+        <p class="calib-coach">${esc(c.coaching)}</p>
+      </div>`; })()}
+
+      <div class="coach-card" id="coach-card">
+        <img src="${MASCOT.idle}" alt="" width="70">
+        <div><p class="eyebrow-line">Your coach</p><p class="coach-msg" id="coach-msg">Looking at your answers…</p><ol class="coach-steps" id="coach-steps"></ol></div>
+      </div>
+
       <div class="stats">
         <div class="stat">
           <span class="stat-num">${r.cbm.score}</span><span class="stat-label">of ${r.cbm.max} confidence-weighted points</span>
@@ -641,6 +768,15 @@ if (typeof document !== "undefined") {
            <ol class="study">${r.studyFirst.map(item).join("")}</ol>`
         : `<p class="empty">Nothing to flag. Every answer you were sure about was right.</p>`}
 
+      <h3 class="section-title">Ask your notes</h3>
+      <p class="meta">Now that you've answered, ask anything. Answers come only from your notes, with the line they came from.</p>
+      <form class="ask" id="ask-form">
+        <input id="ask-input" type="text" placeholder="e.g. Why does rereading feel like knowing?" autocomplete="off" maxlength="400">
+        ${micButton("ask-mic", "")}
+        <button class="btn primary small" type="submit">Ask</button>
+      </form>
+      <div id="ask-out" class="ask-out" aria-live="polite"></div>
+
       ${r.counts.right < QUESTION_COUNT ? `<h3 class="section-title">Come back to it</h3>
       <p class="meta">Spaced review beats one long session. Export what you missed and see it again in 1, 3 and 7 days.</p>
       <div class="actions small-actions"><button type="button" class="btn small" id="anki-btn">Download for Anki</button><button type="button" class="btn small" id="ics-btn">Add reminders to calendar</button></div>` : ""}
@@ -658,6 +794,21 @@ if (typeof document !== "undefined") {
       <div class="actions"><button class="btn primary" id="again-btn" type="button">Try again with new notes</button></div>`;
     show("results");
     renderHud();
+    loadCoach(r);
+    const askForm = $("ask-form"), askInput = $("ask-input"), askOut = $("ask-out");
+    setupMic($("ask-mic"), askInput);
+    askForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const q = askInput.value.trim(); if (!q) return;
+      const btn = askForm.querySelector('button[type="submit"]'); btn.classList.add("busy"); btn.disabled = true;
+      try {
+        const a = await api("/api/ask", { notes: session.notes, question: q });
+        askOut.insertAdjacentHTML("afterbegin", `<div class="ask-item ${a.found ? "" : "nf"}"><p class="ask-q">${esc(q)}</p><p>${esc(a.answer)}</p>${a.quote ? `<blockquote>${esc(a.quote)}</blockquote>` : ""}</div>`);
+        askInput.value = "";
+        say(a.answer, { force: false });
+      } catch (err) { askOut.insertAdjacentHTML("afterbegin", `<p class="notice error">${esc(friendly(err))}</p>`); }
+      finally { btn.classList.remove("busy"); btn.disabled = false; }
+    });
     if (!session.celebrated) { session.celebrated = true; if (good) { confetti(); sfx.win(); } else sfx.partly(); }
 
     $("again-btn").addEventListener("click", () => {
@@ -677,6 +828,25 @@ if (typeof document !== "undefined") {
     const ankiBtn = $("anki-btn"), icsBtn = $("ics-btn");
     if (ankiBtn) ankiBtn.addEventListener("click", () => download("recall-first.txt", "text/plain", missedList.map((a) => `${tsv(a.question)}\t${tsv(a.correctAnswer)}`).join("\n")));
     if (icsBtn) icsBtn.addEventListener("click", () => download("recall-first-review.ics", "text/calendar", ics(missedList)));
+  }
+
+  async function loadCoach(r) {
+    if (session.coach) return paintCoach(session.coach, false);
+    const c = calibration(session.answers);
+    const summary = {
+      score: r.score, of: QUESTION_COUNT, felt: pct(r.confidence), knew: pct(r.accuracy), calibrationNote: c.coaching,
+      byLevel: c.byLevel.filter((l) => l.n).map((l) => ({ level: l.label, used: l.n, rightRate: Math.round(l.hit * 100) })),
+      sureButWrong: r.studyFirst.map((a) => ({ concept: a.concept, question: a.question })),
+      fluencyTraps: r.fluencyTraps.length, concepts: Object.fromEntries(r.blindSpots.map((b) => [b.name, b.status])),
+    };
+    try { session.coach = await api("/api/coach", { summary }); paintCoach(session.coach, true); }
+    catch { $("coach-card") && ($("coach-card").hidden = true); }
+  }
+  function paintCoach(c, speakIt) {
+    const msg = $("coach-msg"); if (!msg) return;
+    msg.textContent = c.message;
+    $("coach-steps").innerHTML = c.steps.map((x) => `<li>${esc(x)}</li>`).join("");
+    if (speakIt) say(c.message);
   }
 
   async function checkCorrection(btn) {

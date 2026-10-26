@@ -144,6 +144,21 @@ raises the function timeout to 60 s for the Opus call. Env vars on Vercel: `ANTH
 (live) or `RECALL_MOCK=1` (practice mode until a key is added). Local dev keeps `server.js`.
 PRD ref: `prd.md > Expansion After the Proof of Concept > Deployment`.
 
+### Voice (lib/voice.js)
+`/api/speak` → Groq `audio/speech` (`canopylabs/orpheus-v1-english`, 200-char cap, WAV); the first hard
+refusal (e.g. `model_terms_required`) is remembered and `/api/status.voice.tts` switches to `browser`.
+`/api/transcribe` takes base64 audio (≤3 MB) and forwards it to Groq `audio/transcriptions`
+(`whisper-large-v3-turbo`) with Node's `FormData`; known Whisper silence hallucinations return `heard:false`.
+Page side: `say()`/`stopSpeech()` (cancelled in `show()`), `setupMic()` with MediaRecorder, a level meter
+and a 60 s cap; the Android wrapper requests `RECORD_AUDIO` at runtime.
+PRD ref: `prd.md > Expansion After the Proof of Concept > Voice`.
+
+### AI tutor routes
+`/api/explain`, `/api/coach` and `/api/ask` in `lib/ai.js`, each with a strict JSON schema, input caps,
+validation and a practice-mode mock. `difficulty` is passed through `/api/questions`. The calibration chart
+uses `public/calibration.js`.
+PRD ref: `prd.md > Expansion After the Proof of Concept > AI tutor features`.
+
 ### Shared route handlers
 `lib/routes.js`: `handlers.status / questions / grade / followups` take a parsed body and return
 data or throw `{status, code}`; `errorResponse` maps a throw to `{status, body}`. Both hosts use it.

@@ -212,6 +212,23 @@ shown on Start as small bars and on Results as a comparison with the previous ru
 ### Speak your answer
 Where the browser supports speech recognition, a button dictates into the answer box.
 
+### Voice
+Questions are read aloud when they appear (Groq Orpheus voice when the account has accepted its terms,
+the browser's voice otherwise), with a replay button on the speech bubble and a header switch. Learners
+can answer by voice: the recording is transcribed by Groq Whisper (browser speech recognition as a
+fallback) into the answer box, where they can edit it; it is never submitted on its own. Feedback, the
+"Why?" explanation, the coach and Ask-your-notes answers are read aloud too. The fluency-trap clock starts
+when the question has finished being read.
+
+### AI tutor features (after answering, never before)
+- **Difficulty:** Easy, Exam or Hard questions, chosen on Start.
+- **Why? Explain it:** on a missed or hinted answer, a two-to-three sentence explanation from the notes
+  that names the misconception, plus a memory hook.
+- **Calibration chart and coach:** Results show a calibration score (Brier), how often each confidence
+  level was right against what it claims, a coaching line, and an AI coach message with three next steps.
+- **Ask your notes:** on Results only, questions answered strictly from the notes with the supporting
+  line quoted verbatim; questions the notes can't answer are refused.
+
 ### Deployment
 The same code runs on Vercel: `api/*.js` functions and `public/` static files. Deployment does
 not replace the demo video.

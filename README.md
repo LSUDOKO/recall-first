@@ -39,7 +39,9 @@ actually recall.
 - **Come back to it**: export missed questions for Anki or as 1/3/7-day calendar reminders.
 - **Share the shape, not the notes**: a Wordle-style card with no content in it.
 - **Local trend**: felt/knew per run kept only in your browser.
-- **Speak your answer** where the browser supports it.
+- **Voice:** questions and feedback are read aloud, and you can answer by voice (Groq Whisper).
+- **AI tutor:** Easy / Exam / Hard questions, a "Why?" explanation with a memory hook after a miss, an AI
+  coach with next steps, a calibration chart, and Ask-your-notes with quoted sources (after the quiz only).
 
 ## Run it
 
