@@ -146,7 +146,7 @@ No back button (looking back at a question after seeing its answer defeats the p
 - **No back navigation** — prevents revising an answer after seeing feedback.
 - **Word limits (100 min / 2,500 max)** — below 100 words there is not enough for five distinct
   questions; above 2,500 the request gets slow and expensive without improving the demo.
-- **Calm, studious look with one highlighter accent** — the overconfidence moment should be the only
+- **Cobalt game look with one amber accent** — the overconfidence moment (the felt/knew gap) should be the only
   loud thing on the screen.
 
 ## What We're Building
